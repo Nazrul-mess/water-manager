@@ -311,7 +311,10 @@
         @media (max-width: 700px) {
             .dashboard-stats { padding: 1rem; }
             .water-action-area { padding: 0 1rem 1rem 1rem; }
-            /* modify the image (QR) */
+            .qr-code img {
+                width: 200px;
+                height: 200px;
+            }
 
         }
     </style>
@@ -339,7 +342,7 @@
                     <label>🔐 Room Password</label>
                     <input type="password" id="userPass" placeholder="Enter password">
                 </div>
-                <button class="btn-primary" id="userLoginBtn">Login as Resident</button>
+                <button class="btn-primary" id="userLoginBtn">Login as MemberAn>
                 <div id="userError" class="error-msg" style="display:none;"></div>
             </div>
             <!-- Admin Login Form -->
@@ -384,7 +387,7 @@
                     </table>
                 </div>
             </div>
-            <div class="qr-code"><img src="QR.jpeg" alt="QR Code"></div>
+            <div id="qrSection"></div>
         </div>
     </div>
 </div>
@@ -801,8 +804,18 @@
             });
             renderRoomsTable();
         }
+        const qrBox = document.querySelector(".qr-code");
+
+        if (qrBox) qrBox.remove();
+
+        if (!currentSession.isAdmin) {
+            const qrDiv = document.createElement("div");
+            qrDiv.className = "qr-code";
+            qrDiv.innerHTML = `<img src="QR.jpeg" alt="QR Code">`;
+            document.querySelector("#dashboardView > div:last-child").appendChild(qrDiv);
+        }
         renderUsageTable();
-        document.getElementById("userRoleBadge").innerHTML = currentSession.isAdmin ? "👑 Admin · Full Access" : `🏠 Room ${currentSession.room} · Resident`;
+        document.getElementById("userRoleBadge").innerHTML = currentSession.isAdmin ? "👑 Admin · Full Access" : `🏠 Room ${currentSession.room} · Member`;
     }
 
     function renderUsageTable() {
