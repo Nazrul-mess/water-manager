@@ -402,12 +402,12 @@
 
     // Default data structure (will be used if bin is empty)
     const DEFAULT_DATA = {
-        water_balance: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0 },
+        water_balance: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8":0 },
         total_water_stored: 0,
-        monthly_water_usage: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0 },
+        monthly_water_usage: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0 },
         detailed_usage_log: [],
         room_passwords: { "1": "room123", "2": "room123", "3": "room123", "4": "room123",
-                          "5": "room123", "6": "room123", "7": "room123" },
+                          "5": "room123", "6": "room123", "7": "room123", "8": "room123" },
         admin_cred: { username: "admin", password: "admin123" },
         water_unit_cost: 0
     };
@@ -696,14 +696,14 @@
                 <div class="form-inline"><div class="input-group"><label>Units to add</label><input type="number" id="addWaterUnits" placeholder="units" min="1"></div>
                 <button class="btn-primary btn-success" id="adminAddWaterBtn">➕ Add Water</button></div><div id="adminWaterFeedback"></div></div>
                 <div class="action-card"><h3>💰 Advance Payment for a Room</h3>
-                <div class="form-inline"><div class="input-group"><label>Room Number</label><input type="number" id="advRoom" min="1" max="7"></div>
+                <div class="form-inline"><div class="input-group"><label>Room Number</label><input type="number" id="advRoom" min="1" max="8"></div>
                 <div class="input-group"><label>Amount (₹)</label><input type="number" id="advAmount" min="1"></div>
                 <button class="btn-primary" id="adminAdvanceBtn">💳 Add Payment</button></div><div id="advFeedback"></div></div>
                 <div class="action-card"><h3>💵 Change Water Unit Cost</h3>
                 <div class="form-inline"><div class="input-group"><label>New Cost (₹/unit)</label><input type="number" id="newCost" min="1"></div>
                 <button class="btn-primary btn-warning" id="updateCostBtn">Update Cost</button></div><div id="costFeedback"></div></div>
                 <div class="action-card"><h3>🔐 Reset Any Room Password</h3>
-                <div class="form-inline"><div class="input-group"><label>Room Number</label><input type="number" id="adminResetRoom" min="1" max="7"></div>
+                <div class="form-inline"><div class="input-group"><label>Room Number</label><input type="number" id="adminResetRoom" min="1" max="8"></div>
                 <div class="input-group"><label>New Password</label><input type="text" id="adminNewPass" placeholder="min 4 chars"></div>
                 <button class="btn-primary" id="adminResetPassBtn">🔄 Reset Password</button></div><div id="adminPassFeedback"></div></div>
                 <div class="action-card"><h3>🔑 Change Admin Password</h3>
@@ -723,7 +723,7 @@
                 const tbody = document.getElementById("roomsBalanceTable");
                 if(!tbody) return;
                 let rows = '';
-                for(let i=1; i<=7; i++) {
+                for(let i=1; i<=8; i++) {
                     const r = i.toString();
                     rows += `<tr><td>Room ${r}</td><td>₹${currentData.water_balance[r]||0}</td><td>${currentData.monthly_water_usage[r]||0} units</td>
                     <td><button class="btn-secondary quick-pay" data-room="${r}" style="padding:4px 12px;">➕ Pay</button></td></tr>`;
@@ -751,7 +751,7 @@
             document.getElementById("adminAdvanceBtn")?.addEventListener("click", () => {
                 const room = document.getElementById("advRoom").value;
                 const amount = parseInt(document.getElementById("advAmount").value);
-                if (room && amount>0 && room>=1 && room<=7) {
+                if (room && amount>0 && room>=1 && room<=8) {
                     advancePayment(room, amount);
                     document.getElementById("advFeedback").innerHTML = `<span style="color:green;">✅ ₹${amount} credited to Room ${room}</span>`;
                     renderUI();
