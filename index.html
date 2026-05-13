@@ -479,7 +479,7 @@
             </div>
             
             <!-- NEW: Water Purchase History Table (Admin Additions) -->
-            <div class="action-card">
+            <div class="action-card" id="purchaseHistorySection" style="display: none;">
                 <h3>📦 Water Purchase History</h3>
                 <div style="overflow-x: auto;">
                     <table id="purchaseTable">
@@ -703,6 +703,14 @@
                 <td>${p.added_by || "Admin"}</td>
             </tr>
         `).join('');
+    }
+
+    // Show/hide purchase history based on admin role
+    function togglePurchaseHistoryVisibility() {
+        const purchaseSection = document.getElementById('purchaseHistorySection');
+        if (purchaseSection) {
+            purchaseSection.style.display = currentSession.isAdmin ? 'block' : 'none';
+        }
     }
 
     function renderRoomDetail(roomNum) {
@@ -948,6 +956,7 @@
                 qrContainer.innerHTML = "";
             }
         }
+        togglePurchaseHistoryVisibility();
     }
 
     async function showDashboard() { document.getElementById("loginView").style.display="none"; document.getElementById("dashboardView").style.display="block"; await fetchFromBin(); renderUI(); }
