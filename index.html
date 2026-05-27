@@ -5,517 +5,122 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Nazrul Mess Water Management</title>
     <link rel="icon" type="image/png" href="logo.jpg">
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "firebase/app": "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js",
+                "firebase/firestore": "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js",
+                "firebase/analytics": "https://www.gstatic.com/firebasejs/12.13.0/firebase-analytics.js"
+            }
+        }
+    </script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            background: #e9f0f5;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            padding: 16px;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            line-height: 1.4;
-            color: #1a2c3e;
-        }
-
-        /* Main container */
-        .app-container {
-            max-width: 1200px;
-            width: 100%;
-            margin: 0 auto;
-        }
-
-        /* Cards / panels */
-        .login-panel, .dashboard-panel {
-            background: #ffffff;
-            border-radius: 20px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            overflow: hidden;
-            transition: all 0.2s ease;
-        }
-
-        /* Login wrapper */
-        .login-wrapper {
-            padding: 24px 20px;
-            max-width: 450px;
-            margin: 0 auto;
-        }
-
-        /* Tab buttons */
-        .tab-buttons {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 28px;
-            border-bottom: 1px solid #dce5ec;
-            padding-bottom: 8px;
-        }
-
-        .tab-btn {
-            background: none;
-            border: none;
-            font-size: 1rem;
-            font-weight: 500;
-            padding: 8px 20px;
-            border-radius: 40px;
-            cursor: pointer;
-            transition: 0.2s;
-            color: #4a627a;
-        }
-
-        .tab-btn.active {
-            background: #1f6392;
-            color: white;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        }
-
-        /* Forms */
-        .login-form {
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-        }
-
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .input-group label {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #2c4c6e;
-            letter-spacing: -0.2px;
-        }
-
-        .input-group input, .input-group select {
-            padding: 12px 16px;
-            border: 1px solid #cbdbe0;
-            border-radius: 28px;
-            font-size: 1rem;
-            background: #fff;
-            transition: 0.2s;
-            font-family: inherit;
-        }
-
-        .input-group input:focus, .input-group select:focus {
-            border-color: #1f6392;
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(31,99,146,0.15);
-        }
-
-        /* Buttons */
-        .btn-primary {
-            background: #1f6392;
-            color: white;
-            border: none;
-            padding: 12px 16px;
-            border-radius: 40px;
-            font-weight: bold;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: 0.15s;
-            text-align: center;
-        }
-
-        .btn-primary:hover {
-            background: #075a8b;
-            transform: scale(0.98);
-        }
-
-        .btn-secondary {
-            background: #e2e8f0;
-            color: #1f3b4c;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 40px;
-            font-weight: 500;
-            cursor: pointer;
-        }
-
-        .btn-danger {
-            background: #c2412c;
-            color: white;
-        }
-        .btn-danger:hover {
-            background: #a02c1a;
-        }
-        .btn-warning {
-            background: #b45309;
-            color: white;
-        }
-        .btn-warning:hover {
-            background: #92400e;
-        }
-        .btn-success {
-            background: #2b7a3e;
-        }
-        .btn-success:hover {
-            background: #1f5e2f;
-        }
-        .btn-info {
-            background: #2c6e9e;
-            color: white;
-        }
-
-        /* Error messages */
-        .error-msg {
-            color: #bc392e;
-            background: #ffe6e5;
-            padding: 8px;
-            border-radius: 30px;
-            text-align: center;
-            font-size: 0.8rem;
-        }
-
-        /* Dashboard header */
-        .dashboard-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 12px;
-            padding: 16px 20px;
-            background: #1e3a5f;
-            color: white;
-        }
-
-        .dashboard-title h2 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .user-badge {
-            background: #2e5a7f;
-            padding: 5px 14px;
-            border-radius: 40px;
-            font-size: 0.85rem;
-            font-weight: 500;
-        }
-
-        .logout-btn {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            padding: 6px 18px;
-            border-radius: 40px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            font-weight: 500;
-        }
-
-        /* Stats grid - simple cards */
-        .dashboard-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 16px;
-            padding: 20px;
-            background: #f4f9fe;
-        }
-
-        .stat-card {
-            background: white;
-            border-radius: 20px;
-            padding: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            border-left: 4px solid #1f6392;
-        }
-
-        .stat-card h3 {
-            font-size: 0.9rem;
-            color: #2d4a6e;
-            margin-bottom: 10px;
-            font-weight: 500;
-        }
-
-        .stat-value {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #1e3a5f;
-            line-height: 1.2;
-        }
-
-        /* Action areas */
-        .water-action-area {
-            padding: 0 20px 20px 20px;
-            background: #f4f9fe;
-        }
-
-        .action-card {
-            background: white;
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-        }
-
-        .form-inline {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 14px;
-            align-items: flex-end;
-        }
-
-        .form-inline .input-group {
-            flex: 1;
-            min-width: 140px;
-        }
-
-        /* Tables */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 16px;
-            overflow: hidden;
-            font-size: 0.85rem;
-        }
-
-        th, td {
-            padding: 12px 8px;
-            text-align: left;
-            border-bottom: 1px solid #e2edf2;
-        }
-
-        th {
-            background: #e3f0fa;
-            color: #1e3a5f;
-            font-weight: 600;
-        }
-
-        /* Alert */
-        .water-alert {
-            background: #ffefdf;
-            border-left: 4px solid #ea580c;
-            padding: 12px 14px;
-            border-radius: 16px;
-            margin-bottom: 18px;
-            font-size: 0.9rem;
-        }
-
-        /* Loading overlay */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.55);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            backdrop-filter: blur(2px);
-        }
-        .loading-content {
-            background: #1e3a5f;
-            padding: 16px 32px;
-            border-radius: 60px;
-            color: white;
-            font-weight: 500;
-        }
-
-        /* Room data card */
-        .room-data-card {
-            background: #fafdff;
-            border-radius: 18px;
-            padding: 16px;
-            margin-top: 12px;
-            border: 1px solid #e2edf2;
-        }
-
-        .quick-advance-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin: 16px 0 8px;
-        }
-        .quick-advance-btn {
-            background: #eef3fc;
-            border: 1px solid #cde1ef;
-            color: #1f6392;
-            padding: 8px 18px;
-            border-radius: 40px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.1s;
-            font-size: 0.85rem;
-        }
-        .quick-advance-btn:hover {
-            background: #dbeafe;
-            transform: scale(0.96);
-        }
-
-        /* spacing helpers */
-        h3, h4, h5 {
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-        h5 {
-            font-size: 0.95rem;
-            margin-top: 12px;
-        }
-        p {
-            margin-bottom: 8px;
-        }
-
-        .qr-code{
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-top: 1.5rem;
-        }
-
-        /* mobile first tweaks */
-        @media (max-width: 640px) {
-            body {
-                padding: 12px;
-            }
-            .dashboard-header {
-                flex-direction: column;
-                align-items: stretch;
-                text-align: center;
-            }
-            .dashboard-stats {
-                padding: 16px;
-                gap: 12px;
-            }
-            .stat-value {
-                font-size: 1.5rem;
-            }
-            .form-inline {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .form-inline .input-group {
-                width: 100%;
-            }
-            .action-card {
-                padding: 16px;
-            }
-            th, td {
-                padding: 8px 6px;
-                font-size: 0.8rem;
-            }
-            .quick-advance-btn {
-                padding: 6px 14px;
-                font-size: 0.8rem;
-            }
-            .tab-btn {
-                padding: 6px 16px;
-                font-size: 0.9rem;
-            }
-            .qr-code img {
-                width: 200px;
-                height: 200px;
-            }
-        }
-
-        /* Classic simple touch */
-        button, .btn-primary, .logout-btn, .quick-advance-btn {
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        footer {
-            text-align: center;
-            font-size: 0.7rem;
-            margin-top: 12px;
-            color: #5d7182;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #e9f0f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 16px; min-height: 100vh; display: flex; align-items: center; justify-content: center; line-height: 1.4; color: #1a2c3e; }
+        .app-container { max-width: 1200px; width: 100%; margin: 0 auto; }
+        .login-panel, .dashboard-panel { background: #ffffff; border-radius: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); overflow: hidden; }
+        .login-wrapper { padding: 24px 20px; max-width: 450px; margin: 0 auto; }
+        .tab-buttons { display: flex; gap: 12px; margin-bottom: 28px; border-bottom: 1px solid #dce5ec; padding-bottom: 8px; }
+        .tab-btn { background: none; border: none; font-size: 1rem; font-weight: 500; padding: 8px 20px; border-radius: 40px; cursor: pointer; color: #4a627a; }
+        .tab-btn.active { background: #1f6392; color: white; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        .login-form { display: flex; flex-direction: column; gap: 18px; }
+        .input-group { display: flex; flex-direction: column; gap: 6px; }
+        .input-group label { font-size: 0.85rem; font-weight: 600; color: #2c4c6e; }
+        .input-group input { padding: 12px 16px; border: 1px solid #cbdbe0; border-radius: 28px; font-size: 1rem; background: #fff; font-family: inherit; }
+        .input-group input:focus { border-color: #1f6392; outline: none; box-shadow: 0 0 0 3px rgba(31,99,146,0.15); }
+        .btn-primary { background: #1f6392; color: white; border: none; padding: 12px 16px; border-radius: 40px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.15s; }
+        .btn-primary:hover { background: #075a8b; transform: scale(0.98); }
+        .btn-secondary { background: #e2e8f0; color: #1f3b4c; border: none; padding: 8px 20px; border-radius: 40px; font-weight: 500; cursor: pointer; }
+        .btn-danger { background: #c2412c; color: white; }
+        .btn-warning { background: #b45309; color: white; }
+        .btn-success { background: #2b7a3e; }
+        .error-msg { color: #bc392e; background: #ffe6e5; padding: 8px; border-radius: 30px; text-align: center; font-size: 0.8rem; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px 20px; background: #1e3a5f; color: white; }
+        .dashboard-title h2 { font-size: 1.25rem; font-weight: 600; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .user-badge { background: #2e5a7f; padding: 5px 14px; border-radius: 40px; font-size: 0.85rem; font-weight: 500; }
+        .logout-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 18px; border-radius: 40px; cursor: pointer; font-size: 0.85rem; }
+        .dashboard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; padding: 20px; background: #f4f9fe; }
+        .stat-card { background: white; border-radius: 20px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 4px solid #1f6392; }
+        .stat-card h3 { font-size: 0.9rem; color: #2d4a6e; margin-bottom: 10px; font-weight: 500; }
+        .stat-value { font-size: 1.8rem; font-weight: 700; color: #1e3a5f; }
+        .water-action-area { padding: 0 20px 20px 20px; background: #f4f9fe; }
+        .action-card { background: white; border-radius: 20px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+        .form-inline { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+        .form-inline .input-group { flex: 1; min-width: 140px; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 16px; overflow: hidden; font-size: 0.85rem; }
+        th, td { padding: 12px 8px; text-align: left; border-bottom: 1px solid #e2edf2; }
+        th { background: #e3f0fa; color: #1e3a5f; font-weight: 600; }
+        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.55); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(2px); }
+        .loading-content { background: #1e3a5f; padding: 16px 32px; border-radius: 60px; color: white; font-weight: 500; }
+        .room-data-card { background: #fafdff; border-radius: 18px; padding: 16px; margin-top: 12px; border: 1px solid #e2edf2; }
+        .quick-advance-grid { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 8px; }
+        .quick-advance-btn { background: #eef3fc; border: 1px solid #cde1ef; color: #1f6392; padding: 8px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .quick-advance-btn:hover { background: #dbeafe; }
+        .db-status { background: #0f3b2c; padding: 4px 12px; border-radius: 40px; font-size: 0.7rem; font-family: monospace; }
+        .auto-sync-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e3a5f; color: white; padding: 10px 20px; border-radius: 40px; z-index: 1001; font-size: 0.8rem; animation: fadeInOut 3s ease forwards; pointer-events: none; }
+        @keyframes fadeInOut { 0% { opacity: 0; transform: translateX(-50%) translateY(20px); } 15% { opacity: 1; transform: translateX(-50%) translateY(0); } 85% { opacity: 1; transform: translateX(-50%) translateY(0); } 100% { opacity: 0; transform: translateX(-50%) translateY(-20px); } }
+        @media (max-width: 640px) { .stat-value { font-size: 1.5rem; } .form-inline { flex-direction: column; align-items: stretch; } }
     </style>
 </head>
 <body>
-<div class="app-container" id="appRoot">
-    <div id="loadingIndicator" style="display:none;" class="loading-overlay">
-        <div class="loading-content">⏳ Syncing...</div>
-    </div>
-
-    <!-- LOGIN VIEW -->
+<div class="app-container">
+    <div id="loadingIndicator" style="display:none;" class="loading-overlay"><div class="loading-content">⏳ Syncing...</div></div>
     <div id="loginView" class="login-panel">
         <div class="login-wrapper">
-            <div class="tab-buttons">
-                <button class="tab-btn active" data-tab="user">🔑 Room User</button>
-                <button class="tab-btn" data-tab="admin">👑 Admin</button>
-            </div>
-            <div id="userLoginForm" class="login-form">
-                <div class="input-group"><label>🏠 Room Number (1-8)</label><input type="number" id="userRoom" placeholder="e.g., 3" min="1" max="8"></div>
-                <div class="input-group"><label>🔐 Room Password</label><input type="password" id="userPass" placeholder="Enter password"></div>
-                <button class="btn-primary" id="userLoginBtn">Login as Member</button>
-                <div id="userError" class="error-msg" style="display:none;"></div>
-            </div>
-            <div id="adminLoginForm" class="login-form" style="display:none;">
-                <div class="input-group"><label>👤 Admin Username</label><input type="text" id="adminUser" placeholder="admin"></div>
-                <div class="input-group"><label>🔒 Admin Password</label><input type="password" id="adminPass" placeholder="••••••"></div>
-                <button class="btn-primary" id="adminLoginBtn">Admin Access</button>
-                <div id="adminError" class="error-msg" style="display:none;"></div>
-            </div>
+            <div class="tab-buttons"><button class="tab-btn active" data-tab="user">🔑 Login as Member</button><button class="tab-btn" data-tab="admin">👑 Login as Admin</button></div>
+            <div id="userLoginForm" class="login-form"><div class="input-group"><label>🏠 Room Number (1-8)</label><input type="number" id="userRoom" placeholder="e.g., 3" min="1" max="8"></div><div class="input-group"><label>🔐 Room Password</label><input type="password" id="userPass" placeholder="Enter password"></div><button class="btn-primary" id="userLoginBtn">Login as Member</button><div id="userError" class="error-msg" style="display:none;"></div></div>
+            <div id="adminLoginForm" class="login-form" style="display:none;"><div class="input-group"><label>👤 Admin Username</label><input type="text" id="adminUser" placeholder="admin"></div><div class="input-group"><label>🔒 Admin Password</label><input type="password" id="adminPass" placeholder="••••••"></div><button class="btn-primary" id="adminLoginBtn">Admin Access</button><div id="adminError" class="error-msg" style="display:none;"></div></div>
         </div>
     </div>
-
-    <!-- DASHBOARD VIEW -->
     <div id="dashboardView" class="dashboard-panel" style="display:none;">
         <div class="dashboard-header">
-            <div class="dashboard-title"><h2>💧 Nazrul Mess Water</h2></div>
+            <div class="dashboard-title"><h2>💧 Nazrul Mess Water <span id="dbStatus" class="db-status">🔄 Synced</span></h2></div>
             <div class="user-badge" id="userRoleBadge">Room X</div>
             <button class="logout-btn" id="logoutBtn">🚪 Logout</button>
         </div>
-        
         <div class="dashboard-stats" id="statsGrid"></div>
         <div class="water-action-area" id="actionArea"></div>
-        
         <div style="padding: 0 20px 20px 20px; background:#f4f9fe;">
-            <div class="action-card" id="roomDetailedSection">
-                <h3 id="roomDetailHeading">📊 Room Complete Data</h3>
-                <div id="roomDetailPanel"></div>
-            </div>
-            
-            <!-- NEW: Water Purchase History Table (Admin Additions) -->
-            <div class="action-card" id="purchaseHistorySection" style="display: none;">
-                <h3>📦 Water Purchase History</h3>
-                <div style="overflow-x: auto;">
-                    <table id="purchaseTable">
-                        <thead>
-                            <tr><th>Date</th><th>Units Added</th><th>Total Cost (₹)</th><th>Added By</th></tr>
-                        </thead>
-                        <tbody id="purchaseTableBody">
-                            <tr><td colspan="4">Loading...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <!-- Room Consumption Log Only -->
-            <div class="action-card">
-                <h3>🚰 Room Water Usage Log</h3>
-                <div style="overflow-x: auto;"><table id="usageTable"><thead><tr><th>Room</th><th>Units Used</th><th>Date</th><th>Cost (₹)</th></tr></thead><tbody id="usageTableBody"><tr><td colspan="4">Loading...</td></tr></tbody></table></div>
-            </div>
+            <div class="action-card"><h3 id="roomDetailHeading">📊 Room Complete Data</h3><div id="roomDetailPanel"></div></div>
+            <div class="action-card" id="purchaseHistorySection" style="display:none;"><h3>📦 Water Purchase History</h3><div style="overflow-x:auto;"><table id="purchaseTable"><thead><tr><th>Date</th><th>Units Added</th><th>Total Cost (₹)</th><th>Added By</th></tr></thead><tbody id="purchaseTableBody"><tr><td colspan="4">Loading...</td></tr></tbody></table></div></div>
+            <div class="action-card"><h3>🚰 Room Water Usage Log</h3><div style="overflow-x:auto;"><table id="usageTable"><thead><tr><th>Room</th><th>Units Used</th><th>Date</th><th>Cost (₹)</th></tr></thead><tbody id="usageTableBody"><tr><td colspan="4">Loading...</td></tr></tbody></table></div></div>
             <div id="qrSection"></div>
         </div>
     </div>
 </div>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-analytics.js";
 
-<script>
-    // ==================== JSONBin CONFIGURATION ====================
+    // ==================== DATABASE CONFIGURATIONS ====================
+    const firebaseConfig = {
+        apiKey: "AIzaSyBXQfK7GsFhnoqQ-CCBALUpAt_mqrW3ynU",
+        authDomain: "waterdb-58644.firebaseapp.com",
+        projectId: "waterdb-58644",
+        storageBucket: "waterdb-58644.firebasestorage.app",
+        messagingSenderId: "189956996443",
+        appId: "1:189956996443:web:5b1d568f663283957cae7e",
+        measurementId: "G-QFEENT6L1X"
+    };
+    
     const JSONBIN_API_KEY = "$2a$10$h1Q1cMJqAOVKAtOW5Zsn8uotclzKzcb5W/bOEos4jt2dcuoyDiUr.";
     const JSONBIN_BIN_ID = "6a033820250b1311c33c838e";
-    // ===============================================================
 
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getFirestore(app);
+    const MAIN_DOC_REF = doc(db, "waterManagement", "mainData");
+
+    // Default data structure
     const DEFAULT_DATA = {
         room_balances: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0 },
         total_balance_pool: 0,
         total_water_stored: 0,
         monthly_water_usage: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0 },
-        detailed_usage_log: [],        // Only for room consumption
-        water_purchase_log: [],        // NEW: Separate log for admin water additions
+        detailed_usage_log: [],
+        water_purchase_log: [],
         room_passwords: { "1": "room123", "2": "room123", "3": "room123", "4": "room123", "5": "room123", "6": "room123", "7": "room123", "8": "room123" },
         admin_cred: { username: "admin", password: "admin123" },
         water_unit_cost: 30,
@@ -525,71 +130,254 @@
     let currentData = JSON.parse(JSON.stringify(DEFAULT_DATA));
     let currentSession = { isAdmin: false, room: null };
     let adminSelectedRoom = 1;
+    let isSyncing = false;
 
-    function persistSession() {
-        if (currentSession.isAdmin === true) localStorage.setItem("nazrul_session", JSON.stringify({ isAdmin: true }));
-        else if (currentSession.room !== null) localStorage.setItem("nazrul_session", JSON.stringify({ isAdmin: false, room: currentSession.room }));
-        else localStorage.removeItem("nazrul_session");
+    function showLoading(show) { 
+        const el = document.getElementById("loadingIndicator");
+        if(el) el.style.display = show ? "flex" : "none";
     }
-    function loadPersistedSession() {
-        const saved = localStorage.getItem("nazrul_session");
-        if (saved) {
-            try {
-                const session = JSON.parse(saved);
-                if (session.isAdmin === true) { currentSession = { isAdmin: true, room: null }; return true; }
-                else if (session.room && session.room >= 1 && session.room <= 8) { currentSession = { isAdmin: false, room: session.room.toString() }; return true; }
-            } catch(e) { console.warn(e); }
+
+    function showToast(message, type = "info") {
+        const toast = document.createElement("div");
+        toast.className = "auto-sync-toast";
+        toast.style.background = type === "success" ? "#2b7a3e" : "#1e3a5f";
+        toast.innerHTML = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    function updateDbStatus(status) {
+        const span = document.getElementById("dbStatus");
+        if(span) span.innerHTML = status;
+    }
+
+    // ==================== JSONBin Operations ====================
+    async function readFromJSONBin() {
+        try {
+            const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+                headers: { "X-Master-Key": JSONBIN_API_KEY }
+            });
+            if(response.ok) {
+                const json = await response.json();
+                if(json.record && Object.keys(json.record).length > 2) {
+                    return { success: true, data: json.record };
+                }
+            }
+            return { success: false, data: null };
+        } catch(e) {
+            console.warn("JSONBin read error:", e.message);
+            return { success: false, data: null, error: e };
         }
-        return false;
     }
-    function clearSession() { localStorage.removeItem("nazrul_session"); currentSession = { isAdmin: false, room: null }; }
 
-    function showLoading(show) { document.getElementById("loadingIndicator").style.display = show ? "flex" : "none"; }
-
-    async function fetchFromBin() {
-        if (!JSONBIN_API_KEY || !JSONBIN_BIN_ID || JSONBIN_API_KEY.includes("YOUR_API")) { loadLocalFallback(); return false; }
-        showLoading(true);
+    async function writeToJSONBin(data) {
         try {
-            const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, { headers: { "X-Master-Key": JSONBIN_API_KEY } });
-            if (response.ok) {
-                const data = await response.json();
-                if (data.record && Object.keys(data.record).length) currentData = data.record;
-                else currentData = JSON.parse(JSON.stringify(DEFAULT_DATA));
-                if (!currentData.advance_transactions) currentData.advance_transactions = [];
-                if (!currentData.water_purchase_log) currentData.water_purchase_log = [];
-                if (currentData.total_balance_pool === undefined) currentData.total_balance_pool = 0;
-                showLoading(false); return true;
-            } else { throw new Error("fetch failed"); }
-        } catch (err) { console.error(err); loadLocalFallback(); showLoading(false); return false; }
+            await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", "X-Master-Key": JSONBIN_API_KEY },
+                body: JSON.stringify(data)
+            });
+            return true;
+        } catch(e) {
+            console.warn("JSONBin write error:", e.message);
+            return false;
+        }
     }
-    async function saveToBin() {
-        if (!JSONBIN_API_KEY || JSONBIN_API_KEY.includes("YOUR_API")) { saveLocalFallback(); return; }
-        showLoading(true);
-        try {
-            await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, { method: "PUT", headers: { "Content-Type": "application/json", "X-Master-Key": JSONBIN_API_KEY }, body: JSON.stringify(currentData) });
-            showLoading(false);
-        } catch(err) { console.error(err); saveLocalFallback(); showLoading(false); }
-    }
-    function loadLocalFallback() { 
-        const local = localStorage.getItem("nazrul_water_backup"); 
-        if(local) currentData = JSON.parse(local); 
-        else currentData = JSON.parse(JSON.stringify(DEFAULT_DATA)); 
-        if(!currentData.advance_transactions) currentData.advance_transactions = []; 
-        if(!currentData.water_purchase_log) currentData.water_purchase_log = [];
-        if(currentData.total_balance_pool === undefined) currentData.total_balance_pool = 0; 
-    }
-    function saveLocalFallback() { localStorage.setItem("nazrul_water_backup", JSON.stringify(currentData)); }
-    async function commitChanges() { await saveToBin(); renderUI(); }
 
+    // ==================== Firestore Operations ====================
+    async function readFromFirestore() {
+        try {
+            const docSnap = await getDoc(MAIN_DOC_REF);
+            if(docSnap.exists()) {
+                const data = docSnap.data();
+                if(data && Object.keys(data).length > 2) {
+                    return { success: true, data: data };
+                }
+            }
+            return { success: false, data: null };
+        } catch(e) {
+            console.warn("Firestore read error:", e.message);
+            return { success: false, data: null, error: e };
+        }
+    }
+
+    async function writeToFirestore(data) {
+        try {
+            await setDoc(MAIN_DOC_REF, { ...data, lastUpdated: new Date().toISOString(), timestamp: Date.now() }, { merge: true });
+            return true;
+        } catch(e) {
+            console.warn("Firestore write error:", e.message);
+            return false;
+        }
+    }
+
+    // ==================== SMART AUTO-RECOVERY ====================
+    // Compares two data sources and returns the one with more/later data
+    function compareDataAndGetLatest(source1, source2, source1Name, source2Name) {
+        if (!source1 && !source2) return null;
+        if (!source1) return { data: source2, source: source2Name };
+        if (!source2) return { data: source1, source: source1Name };
+        
+        // Calculate data completeness score
+        let score1 = 0, score2 = 0;
+        
+        // Check total_water_stored (more water storage means more recent operations)
+        if (source1.total_water_stored !== undefined) score1 += source1.total_water_stored / 100;
+        if (source2.total_water_stored !== undefined) score2 += source2.total_water_stored / 100;
+        
+        // Check total_balance_pool
+        if (source1.total_balance_pool !== undefined) score1 += source1.total_balance_pool / 1000;
+        if (source2.total_balance_pool !== undefined) score2 += source2.total_balance_pool / 1000;
+        
+        // Check number of logs (more logs = more activity)
+        if (source1.detailed_usage_log) score1 += source1.detailed_usage_log.length;
+        if (source2.detailed_usage_log) score2 += source2.detailed_usage_log.length;
+        
+        if (source1.water_purchase_log) score1 += source1.water_purchase_log.length;
+        if (source2.water_purchase_log) score2 += source2.water_purchase_log.length;
+        
+        if (source1.advance_transactions) score1 += source1.advance_transactions.length;
+        if (source2.advance_transactions) score2 += source2.advance_transactions.length;
+        
+        // Check timestamps if available
+        if (source1.lastUpdatedTimestamp && source2.lastUpdatedTimestamp) {
+            if (source1.lastUpdatedTimestamp > source2.lastUpdatedTimestamp) score1 += 10;
+            else score2 += 10;
+        }
+        
+        // Return the one with higher score
+        if (score1 >= score2) {
+            return { data: source1, source: source1Name, score: score1 };
+        } else {
+            return { data: source2, source: source2Name, score: score2 };
+        }
+    }
+
+    // Main auto-sync function - called on every load and after every write
+    async function autoSyncDatabases(forceSync = false) {
+        if (isSyncing) return;
+        isSyncing = true;
+        
+        updateDbStatus("🔄 Syncing...");
+        
+        // Read from both databases
+        const firestoreResult = await readFromFirestore();
+        const jsonbinResult = await readFromJSONBin();
+        
+        const firestoreData = firestoreResult.success ? firestoreResult.data : null;
+        const jsonbinData = jsonbinResult.success ? jsonbinResult.data : null;
+        
+        // Compare and find latest/best data
+        const latest = compareDataAndGetLatest(firestoreData, jsonbinData, "Firestore", "JSONBin");
+        
+        if (latest) {
+            const currentDataHash = JSON.stringify(currentData);
+            const latestDataHash = JSON.stringify(latest.data);
+            
+            // If latest data is different from current, update currentData
+            if (currentDataHash !== latestDataHash && latest.data) {
+                // Ensure all fields exist in the recovered data
+                const recoveredData = { ...DEFAULT_DATA, ...latest.data };
+                if (!recoveredData.advance_transactions) recoveredData.advance_transactions = [];
+                if (!recoveredData.water_purchase_log) recoveredData.water_purchase_log = [];
+                if (!recoveredData.detailed_usage_log) recoveredData.detailed_usage_log = [];
+                if (!recoveredData.monthly_water_usage) recoveredData.monthly_water_usage = { "1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0 };
+                if (!recoveredData.room_balances) recoveredData.room_balances = { "1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0 };
+                if (!recoveredData.room_passwords) recoveredData.room_passwords = { "1":"room123","2":"room123","3":"room123","4":"room123","5":"room123","6":"room123","7":"room123","8":"room123" };
+                if (recoveredData.water_unit_cost === undefined) recoveredData.water_unit_cost = 30;
+                if (recoveredData.total_balance_pool === undefined) recoveredData.total_balance_pool = 0;
+                
+                currentData = recoveredData;
+                localStorage.setItem("nazrul_water_backup", JSON.stringify(currentData));
+                
+                // Show which source provided the data
+                if (latest.source === "JSONBin" && firestoreData) {
+                    showToast(`🔄 Auto-restored from JSONBin backup (more complete data)`, "success");
+                } else if (latest.source === "Firestore" && jsonbinData) {
+                    showToast(`🔄 Auto-synced Firestore data to backup`, "success");
+                }
+            }
+            
+            // Now sync the latest data to BOTH databases to ensure consistency
+            let syncedAny = false;
+            
+            // Write to Firestore if needed (if Firestore doesn't have latest or force sync)
+            if (!firestoreData || forceSync || JSON.stringify(firestoreData) !== JSON.stringify(latest.data)) {
+                const writeOk = await writeToFirestore(latest.data);
+                if (writeOk) syncedAny = true;
+            }
+            
+            // Write to JSONBin if needed
+            if (!jsonbinData || forceSync || JSON.stringify(jsonbinData) !== JSON.stringify(latest.data)) {
+                const writeOk = await writeToJSONBin(latest.data);
+                if (writeOk) syncedAny = true;
+            }
+            
+            if (syncedAny) {
+                updateDbStatus("✅ DB Synced");
+            } else {
+                updateDbStatus("✅ Synced");
+            }
+        } else {
+            // No data in either database - initialize defaults
+            currentData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+            await writeToFirestore(currentData);
+            await writeToJSONBin(currentData);
+            localStorage.setItem("nazrul_water_backup", JSON.stringify(currentData));
+            updateDbStatus("✅ Initialized");
+            showToast("🆕 New system initialized in both databases", "success");
+        }
+        
+        isSyncing = false;
+        return true;
+    }
+
+    // Called after any data modification - syncs changes to both DBs
+    async function syncAfterModification() {
+        if (isSyncing) return;
+        isSyncing = true;
+        
+        updateDbStatus("🔄 Syncing changes...");
+        
+        // Write currentData to both databases
+        const firestoreOk = await writeToFirestore(currentData);
+        const jsonbinOk = await writeToJSONBin(currentData);
+        
+        if (firestoreOk && jsonbinOk) {
+            updateDbStatus("✅ Synced");
+        } else if (firestoreOk) {
+            updateDbStatus("⚠️ Firestore OK, JSONBin offline");
+        } else if (jsonbinOk) {
+            updateDbStatus("⚠️ JSONBin OK, Firestore offline");
+        } else {
+            updateDbStatus("⚠️ Both offline - using local");
+        }
+        
+        // Update local backup
+        localStorage.setItem("nazrul_water_backup", JSON.stringify(currentData));
+        
+        isSyncing = false;
+        renderUI();
+    }
+
+    // Initial load - auto-recover from best available source
+    async function initializeData() {
+        showLoading(true);
+        await autoSyncDatabases(true); // Force sync on load
+        showLoading(false);
+    }
+
+    // ==================== BUSINESS LOGIC ====================
     const getUnitCost = () => currentData.water_unit_cost || 30;
-
+    
     function addAdvanceTransaction(room, amount) {
-        currentData.advance_transactions.unshift({ room: room.toString(), amount: amount, date: new Date().toISOString().slice(0,10), timestamp: Date.now(), note: "Advance payment" });
+        currentData.advance_transactions.unshift({ 
+            room: room.toString(), amount, date: new Date().toISOString().slice(0,10), timestamp: Date.now() 
+        });
         if (currentData.advance_transactions.length > 50) currentData.advance_transactions.pop();
     }
-
-    // MODIFIED: Admin add water - now uses separate purchase log, NOT added to usage log
-    function adminAddWaterStorage(units, addedBy = "Admin") {
+    
+    async function adminAddWaterStorage(units, addedBy = "Admin") {
         if (units <= 0) return { success: false, message: "Invalid units" };
         const waterCost = units * getUnitCost();
         if (waterCost > currentData.total_balance_pool) {
@@ -597,27 +385,19 @@
         }
         currentData.total_balance_pool -= waterCost;
         currentData.total_water_stored += units;
-        
-        // NEW: Add to water purchase log (separate table for admin additions)
         currentData.water_purchase_log.unshift({ 
-            date: new Date().toISOString().slice(0,10), 
-            units: units, 
-            cost: waterCost,
-            added_by: addedBy,
-            timestamp: Date.now()
+            date: new Date().toISOString().slice(0,10), units, cost: waterCost, added_by: addedBy, timestamp: Date.now() 
         });
-        
-        // Keep this for backward compatibility but it won't show in usage table (filtered out)
-        // We keep it but usage table filters out ADMIN entries
-        currentData.detailed_usage_log.unshift({ room: "ADMIN_PURCHASE", units: units, date: new Date().toISOString().slice(0,10), cost: waterCost, note: `Added ${units} units water` });
-        
+        currentData.detailed_usage_log.unshift({ 
+            room: "ADMIN_PURCHASE", units, date: new Date().toISOString().slice(0,10), cost: waterCost 
+        });
         if (currentData.water_purchase_log.length > 50) currentData.water_purchase_log.pop();
         if (currentData.detailed_usage_log.length > 50) currentData.detailed_usage_log.pop();
-        commitChanges();
-        return { success: true, message: `✅ Added ${units} units water. ₹${waterCost} deducted from Total Balance. Storage: ${currentData.total_water_stored} units.` };
+        await syncAfterModification();
+        return { success: true, message: `✅ Added ${units} units water. ₹${waterCost} deducted. Storage: ${currentData.total_water_stored} units.` };
     }
-
-    function roomConsumeWater(room, units) {
+    
+    async function roomConsumeWater(room, units) {
         room = room.toString();
         let roomBalance = currentData.room_balances[room] || 0;
         let requiredCost = units * getUnitCost();
@@ -625,365 +405,296 @@
             return { success: false, message: `Insufficient room balance! Need ₹${requiredCost}, available ₹${roomBalance}` };
         }
         if (units > currentData.total_water_stored) {
-            return { success: false, message: `Not enough water in storage. Available: ${currentData.total_water_stored} units` };
+            return { success: false, message: `Not enough water. Available: ${currentData.total_water_stored} units` };
         }
         currentData.room_balances[room] -= requiredCost;
         currentData.total_water_stored -= units;
         currentData.monthly_water_usage[room] = (currentData.monthly_water_usage[room] || 0) + units;
-        // This goes to usage log (room consumption only)
-        currentData.detailed_usage_log.unshift({ room: room, units: units, date: new Date().toISOString().slice(0,10), cost: requiredCost });
+        currentData.detailed_usage_log.unshift({ 
+            room: room, units, date: new Date().toISOString().slice(0,10), cost: requiredCost 
+        });
         if (currentData.detailed_usage_log.length > 50) currentData.detailed_usage_log.pop();
-        commitChanges();
+        await syncAfterModification();
         return { success: true, message: `Consumed ${units} units. Cost ₹${requiredCost}. New balance: ₹${currentData.room_balances[room]}` };
     }
-
-    function adminAdvancePayment(room, amount) {
-        if(amount <= 0) return { success: false, message: "Amount must be positive" };
+    
+    async function adminAdvancePayment(room, amount) {
+        if (amount <= 0) return { success: false, message: "Amount must be positive" };
         room = room.toString();
         currentData.room_balances[room] = (currentData.room_balances[room] || 0) + amount;
         currentData.total_balance_pool += amount;
         addAdvanceTransaction(room, amount);
-        commitChanges();
-        return { success: true, message: `₹${amount} added to Room ${room}. Room balance: ₹${currentData.room_balances[room]}. Total Balance: ₹${currentData.total_balance_pool}` };
+        await syncAfterModification();
+        return { success: true, message: `₹${amount} added to Room ${room}. Room balance: ₹${currentData.room_balances[room]}` };
+    }
+    
+    async function updateWaterUnitCost(cost) {
+        if (cost < 1) return { success: false, message: "Cost must be at least ₹1" };
+        currentData.water_unit_cost = cost;
+        await syncAfterModification();
+        return { success: true, message: `Unit cost updated to ₹${cost}` };
+    }
+    
+    async function resetAllData() {
+        if (confirm("⚠️ WARNING: This will reset ALL water data to default. Are you sure?")) {
+            currentData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+            await syncAfterModification();
+            renderUI();
+            alert("All data has been reset and synced to both databases.");
+            return true;
+        }
+        return false;
     }
 
-    function updateRoomPassword(room, newPassword) { 
-        if(!newPassword || newPassword.trim().length < 4) return {success:false, message:"Password must be at least 4 characters"}; 
-        currentData.room_passwords[room.toString()] = newPassword.trim(); 
-        commitChanges(); 
-        return {success:true, message:"Password updated successfully!"}; 
-    }
-    
-    function updateAdminPassword(cur, newP, conf) { 
-        if(cur !== currentData.admin_cred.password) return {success:false, message:"Current password incorrect"}; 
-        if(newP !== conf) return {success:false, message:"New passwords do not match"}; 
-        if(newP.length < 4) return {success:false, message:"Minimum 4 characters"}; 
-        currentData.admin_cred.password = newP.trim(); 
-        commitChanges(); 
-        return {success:true, message:"Admin password changed"}; 
-    }
-    
-    function updateWaterUnitCost(cost) { 
-        if(cost < 1) return {success:false, message:"Cost must be at least ₹1"}; 
-        currentData.water_unit_cost = cost; 
-        commitChanges(); 
-        return {success:true, message:`Unit cost updated to ₹${cost}`}; 
-    }
-    
-    async function resetAllData() { 
-        if(confirm("⚠️ WARNING: This will reset ALL water data to default. Are you sure?")) {
-            currentData = JSON.parse(JSON.stringify(DEFAULT_DATA)); 
-            currentData.advance_transactions = []; 
-            currentData.water_purchase_log = [];
-            currentData.total_balance_pool = 0;
-            await commitChanges(); 
-            renderUI(); 
-            alert("All data has been reset.");
-            return true; 
-        } 
-        return false; 
-    }
-
-    // NEW: Render water purchase history table (admin additions only)
+    // ==================== UI RENDERING ====================
     function renderPurchaseTable() {
         const tbody = document.getElementById("purchaseTableBody");
-        if(!tbody) return;
-        
+        if (!tbody) return;
         let purchases = currentData.water_purchase_log || [];
-        if(!purchases.length) { 
-            tbody.innerHTML = "<tr><td colspan='4'>No water purchase records</td></tr>"; 
-            return; 
+        if (!purchases.length) {
+            tbody.innerHTML = "<tr><td colspan='4'>No water purchase records</td></tr>";
+            return;
         }
-        
-        tbody.innerHTML = purchases.slice(0, 20).map(p => `
-            <tr>
-                <td>${p.date}</td>
-                <td>${p.units} units</td>
-                <td>₹${p.cost}</td>
-                <td>${p.added_by || "Admin"}</td>
-            </tr>
-        `).join('');
+        tbody.innerHTML = purchases.slice(0, 20).map(p => 
+            `<tr><td>${p.date}</td><td>${p.units} units</td><td>₹${p.cost}</td><td>${p.added_by || "Admin"}</td></tr>`
+        ).join('');
     }
-
-    // Show/hide purchase history based on admin role
-    function togglePurchaseHistoryVisibility() {
-        const purchaseSection = document.getElementById('purchaseHistorySection');
-        if (purchaseSection) {
-            purchaseSection.style.display = currentSession.isAdmin ? 'block' : 'none';
+    
+    function renderUsageTable() {
+        const tbody = document.getElementById("usageTableBody");
+        if (!tbody) return;
+        let logs = (currentData.detailed_usage_log || []).slice(0, 20).filter(l => l.room !== "ADMIN_PURCHASE");
+        if (!currentSession.isAdmin && currentSession.room) {
+            logs = logs.filter(l => l.room === currentSession.room);
         }
+        if (!logs.length) {
+            tbody.innerHTML = "<tr><td colspan='4'>No consumption records</td></tr>";
+            return;
+        }
+        tbody.innerHTML = logs.map(l => 
+            `<tr><td>Room ${l.room}</td><td>${l.units} units</td><td>${l.date}</td><td>₹${l.cost}</td></tr>`
+        ).join('');
     }
-
+    
     function renderRoomDetail(roomNum) {
         const panel = document.getElementById("roomDetailPanel");
-        if(!panel) return;
+        if (!panel) return;
         const r = roomNum.toString();
         const balance = currentData.room_balances[r] || 0;
         const monthly = currentData.monthly_water_usage[r] || 0;
-        const isAdminView = currentSession.isAdmin;
         const roomAdvances = currentData.advance_transactions.filter(t => t.room === r);
-        
-        let html = `<div class="room-data-card">
-            <h4>🏠 Room ${roomNum} - Complete Details</h4>
+        let html = `<div class="room-data-card"><h4>🏠 Room ${roomNum} - Complete Details</h4>
             <p><strong>💰 Current Balance:</strong> ₹${balance}</p>
             <p><strong>📊 This Month's Usage:</strong> ${monthly} units (₹${monthly * getUnitCost()})</p>
             <p><strong>💵 Cost Per Unit:</strong> ₹${getUnitCost()}</p>
-            <h5 style="margin-top: 0.8rem;">📜 Advance Payment History</h5>`;
-        if(roomAdvances.length) {
-            html += `<table style="width:100%; margin-top:0.5rem;"><thead><tr><th>Date</th><th>Amount (₹)</th></tr></thead><tbody>`;
+            <h5>📜 Advance Payment History</h5>`;
+        if (roomAdvances.length) {
+            html += `<table><thead><tr><th>Date</th><th>Amount (₹)</th></tr></thead><tbody>`;
             roomAdvances.forEach(t => { html += `<tr><td>${t.date}</td><td>₹${t.amount}</td></tr>`; });
             html += `</tbody></table>`;
         } else {
             html += `<p>No advance payments recorded.</p>`;
         }
-        
-        if(isAdminView) {
-            html += `<div style="margin-top: 1rem; border-top:1px solid #e2edf2; padding-top:1rem;">
-                        <h5>➕ Quick Advance</h5>
-                        <div class="quick-advance-grid">
-                            <button class="quick-advance-btn" data-amount="100">₹100</button>
-                            <button class="quick-advance-btn" data-amount="200">₹200</button>
-                            <button class="quick-advance-btn custom-advance">✏️ Custom</button>
-                        </div>
-                        <div id="roomAdvFeedback" style="margin-top:10px;"></div>
-                     </div>`;
-        } else {
-            html += `<div style="margin-top: 1rem; border-top:1px solid #e2edf2; padding-top:1rem;">
-                        <h5>🔐 Change Your Room Password</h5>
-                        <div class="form-inline">
-                            <div class="input-group"><label>Current Password</label><input type="password" id="roomCurrentPass" placeholder="current"></div>
-                            <div class="input-group"><label>New Password (min 4)</label><input type="password" id="roomNewPass"></div>
-                            <div class="input-group"><label>Confirm</label><input type="password" id="roomConfirmPass"></div>
-                            <button class="btn-primary btn-warning" id="roomChangePassBtn">Update Password</button>
-                        </div>
-                        <div id="roomPassFeedback"></div>
-                     </div>`;
-        }
         html += `</div>`;
         panel.innerHTML = html;
-        
-        if(isAdminView) {
-            document.querySelectorAll(".quick-advance-btn").forEach(btn => {
-                btn.addEventListener("click", () => {
-                    let amount = null;
-                    if(btn.classList.contains("custom-advance")) {
-                        amount = prompt("Enter advance amount (₹):", "300");
-                        if(amount === null) return;
-                        amount = parseInt(amount);
-                    } else {
-                        amount = parseInt(btn.dataset.amount);
-                    }
-                    if(amount && amount > 0) {
-                        const res = adminAdvancePayment(r, amount);
-                        document.getElementById("roomAdvFeedback").innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
-                        renderUI();
-                    } else {
-                        document.getElementById("roomAdvFeedback").innerHTML = `<span style="color:red">❌ Invalid amount</span>`;
-                    }
-                });
-            });
-        } else {
-            document.getElementById("roomChangePassBtn")?.addEventListener("click", () => {
-                const cur = document.getElementById("roomCurrentPass")?.value;
-                const newP = document.getElementById("roomNewPass")?.value;
-                const conf = document.getElementById("roomConfirmPass")?.value;
-                if(cur !== currentData.room_passwords[r]) return document.getElementById("roomPassFeedback").innerHTML = "<span style='color:red'>❌ Current password incorrect</span>";
-                if(newP !== conf) return document.getElementById("roomPassFeedback").innerHTML = "<span style='color:red'>❌ New passwords do not match</span>";
-                const res = updateRoomPassword(r, newP);
-                document.getElementById("roomPassFeedback").innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
-                if(res.success) { document.getElementById("roomCurrentPass").value = ""; document.getElementById("roomNewPass").value = ""; document.getElementById("roomConfirmPass").value = ""; }
-            });
-        }
     }
-
-    // Modified: Only show room consumption (filter out ADMIN entries)
-    function renderUsageTable() {
-        const tbody = document.getElementById("usageTableBody");
-        if(!tbody) return;
-        const isAdmin = currentSession.isAdmin;
-        let logs = currentData.detailed_usage_log.slice(0, 20);
-        // Filter out ADMIN purchase entries - only show actual room consumption
-        logs = logs.filter(log => log.room !== "ADMIN_PURCHASE" && log.room !== "ADMIN");
-        if(!isAdmin && currentSession.room) {
-            logs = logs.filter(log => log.room === currentSession.room);
-        }
-        if(!logs.length) { tbody.innerHTML = "<tr><td colspan='4'>No consumption records</td></tr>"; return; }
-        tbody.innerHTML = logs.map(l => `<tr><td>Room ${l.room}</td><td>${l.units} units</td><td>${l.date}</td><td>₹${l.cost}</td></tr>`).join('');
-    }
-
+    
     async function renderUI() {
         const isAdmin = currentSession.isAdmin;
         const roomId = currentSession.room;
         const statsDiv = document.getElementById("statsGrid");
         const actionDiv = document.getElementById("actionArea");
-        if(!statsDiv || !actionDiv) return;
-
+        if (!statsDiv || !actionDiv) return;
+        
         let statsHtml = `<div class="stat-card"><h3>💧 Water Storage</h3><div class="stat-value">${currentData.total_water_stored} units</div></div>`;
-        if(isAdmin) {
+        if (isAdmin) {
             statsHtml += `<div class="stat-card"><h3>💰 Total Balance</h3><div class="stat-value">₹${currentData.total_balance_pool}</div></div>
-                          <div class="stat-card"><h3>💵 Cost/Unit</h3><div class="stat-value">₹${getUnitCost()}</div></div>`;
-        } else if(roomId) {
+                         <div class="stat-card"><h3>💵 Cost/Unit</h3><div class="stat-value">₹${getUnitCost()}</div></div>`;
+        } else if (roomId) {
             const myBal = currentData.room_balances[roomId] || 0;
-            statsHtml += `<div class="stat-card"><h3>🏠 Your Balance</h3><div class="stat-value" style="color:${myBal<60?'#bc392e':'#1e3a5f'}">₹${myBal}</div></div>
-                          <div class="stat-card"><h3>📊 Your Monthly Usage</h3><div class="stat-value">${currentData.monthly_water_usage[roomId] || 0} units</div></div>`;
+            statsHtml += `<div class="stat-card"><h3>🏠 Your Balance</h3><div class="stat-value" style="color:${myBal < 60 ? '#bc392e' : '#1e3a5f'}">₹${myBal}</div></div>
+                         <div class="stat-card"><h3>📊 Your Monthly Usage</h3><div class="stat-value">${currentData.monthly_water_usage[roomId] || 0} units</div></div>`;
         }
         statsDiv.innerHTML = statsHtml;
-
-        if(!isAdmin && roomId) {
-            actionDiv.innerHTML = `
-                <div class="action-card"><h3>🚰 Consume Water (Room ${roomId})</h3>
-                ${currentData.room_balances[roomId] < 60 ? '<div class="water-alert">⚠️ Low balance! Below ₹60. Please recharge.</div>' : ''}
-                <div class="form-inline"><div class="input-group"><label>Units (1 unit = ₹${getUnitCost()})</label><input type="number" id="userUnits" min="1" placeholder="Units"></div>
-                <button class="btn-primary" id="useWaterBtn">💧 Use Water</button></div><div id="userActionFeedback"></div></div>
-                <div class="action-card"><h3>ℹ️ Your Information</h3><p><strong>Current Balance:</strong> ₹${currentData.room_balances[roomId]}</p>
-                <p><strong>Total Water Used This Month:</strong> ${currentData.monthly_water_usage[roomId] || 0} units</p>
-                <p><strong>Cost per Unit:</strong> ₹${getUnitCost()}</p></div>
-            `;
-            document.getElementById("useWaterBtn")?.addEventListener("click", () => {
-                const units = parseInt(document.getElementById("userUnits").value);
-                if(isNaN(units) || units <= 0) return document.getElementById("userActionFeedback").innerHTML = "<span style='color:red'>❌ Enter valid units</span>";
-                const res = roomConsumeWater(roomId, units);
-                document.getElementById("userActionFeedback").innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
-                if(res.success) renderUI();
+        
+        if (!isAdmin && roomId) {
+            actionDiv.innerHTML = `<div class="action-card"><h3>🚰 Consume Water (Room ${roomId})</h3>
+                <div class="form-inline"><div class="input-group"><label>Units (1 unit = ₹${getUnitCost()})</label>
+                <input type="number" id="userUnits" min="1" placeholder="Units"></div>
+                <button class="btn-primary" id="useWaterBtn">💧 Use Water</button></div>
+                <div id="userActionFeedback"></div></div>`;
+            document.getElementById("useWaterBtn")?.addEventListener("click", async () => {
+                const units = parseInt(document.getElementById("userUnits")?.value);
+                if (isNaN(units) || units <= 0) return;
+                const res = await roomConsumeWater(roomId, units);
+                const fb = document.getElementById("userActionFeedback");
+                if (fb) fb.innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
+                if (res.success) renderUI();
             });
-        } 
-        else if(isAdmin) {
-            actionDiv.innerHTML = `
-                <div class="action-card"><h3>🌊 Add Water to Storage</h3>
+        } else if (isAdmin) {
+            actionDiv.innerHTML = `<div class="action-card"><h3>🌊 Add Water to Storage</h3>
                 <div class="form-inline"><div class="input-group"><label>Units to Add</label><input type="number" id="addWaterUnits" min="1"></div>
-                <button class="btn-primary btn-success" id="adminAddWaterBtn">➕ Add Water </button></div><div id="adminWaterFeedback"></div></div>
+                <button class="btn-primary btn-success" id="adminAddWaterBtn">➕ Add Water</button></div>
+                <div id="adminWaterFeedback"></div></div>
                 <div class="action-card"><h3>💰 Quick Advance</h3>
                 <div class="form-inline"><div class="input-group"><label>Room Number (1-8)</label><input type="number" id="advRoom" min="1" max="8" placeholder="Room"></div>
-                <div class="quick-advance-grid" style="margin-top:0;">
-                    <button class="quick-advance-btn" data-quick-room="100">₹100</button>
-                    <button class="quick-advance-btn" data-quick-room="200">₹200</button>
-                    <button class="quick-advance-btn custom-room-adv">✏️ Custom</button>
-                </div>
-                <div id="advFeedback" style="margin-top:10px;"></div></div>
+                <div class="quick-advance-grid"><button class="quick-advance-btn" data-quick-room="100">₹100</button>
+                <button class="quick-advance-btn" data-quick-room="200">₹200</button>
+                <button class="quick-advance-btn custom-room-adv">✏️ Custom</button></div>
+                <div id="advFeedback"></div></div></div>
                 <div class="action-card"><h3>⚙️ System Settings</h3>
                 <div class="form-inline"><div class="input-group"><label>Unit Cost (₹)</label><input type="number" id="newCost" min="1" value="${getUnitCost()}"></div>
-                <button class="btn-primary btn-warning" id="updateCostBtn">Update Cost</button></div>
-                <div style="margin-top:12px;"><button class="btn-secondary" id="changeAdminPassBtn">🔑 Change Admin Password</button></div>
-                <div id="adminPassArea" style="display:none; margin-top:12px;"></div>
-                <div id="costFeedback"></div></div>
-                <div class="action-card"><h3>⚠️ Danger Zone</h3>
-                <button class="btn-primary btn-danger" id="resetAllDataBtn">🗑️ RESET ALL DATA TO DEFAULT</button></div>
-            `;
-            document.getElementById("adminAddWaterBtn")?.addEventListener("click", () => {
-                const units = parseInt(document.getElementById("addWaterUnits").value);
-                const res = adminAddWaterStorage(units, "Admin");
-                document.getElementById("adminWaterFeedback").innerHTML = res.success ? `<span style="color:green">${res.message}</span>` : `<span style="color:red">${res.message}</span>`;
-                if(res.success) renderUI();
-            });
+                <button class="btn-primary btn-warning" id="updateCostBtn">Update Cost</button></div></div>
+                <div class="action-card"><button class="btn-primary btn-danger" id="resetAllDataBtn">🗑️ RESET ALL DATA</button></div>`;
             
-            document.querySelectorAll("[data-quick-room]").forEach(btn => {
-                btn.addEventListener("click", () => {
-                    const room = document.getElementById("advRoom").value;
-                    if(!room || room<1 || room>8) {
-                        document.getElementById("advFeedback").innerHTML = "<span style='color:red'>❌ Select a valid room first (1-8)</span>";
-                        return;
-                    }
-                    const amount = parseInt(btn.dataset.quickRoom);
-                    const res = adminAdvancePayment(room, amount);
-                    document.getElementById("advFeedback").innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
-                    renderUI();
-                });
+            document.getElementById("adminAddWaterBtn")?.addEventListener("click", async () => {
+                const units = parseInt(document.getElementById("addWaterUnits")?.value);
+                const res = await adminAddWaterStorage(units, "Admin");
+                document.getElementById("adminWaterFeedback").innerHTML = res.success ? `<span style="color:green">${res.message}</span>` : `<span style="color:red">${res.message}</span>`;
+                if (res.success) renderUI();
             });
-            document.querySelector(".custom-room-adv")?.addEventListener("click", () => {
-                const room = document.getElementById("advRoom").value;
-                if(!room || room<1 || room>8) {
-                    document.getElementById("advFeedback").innerHTML = "<span style='color:red'>❌ Select a valid room (1-8)</span>";
+            document.querySelectorAll("[data-quick-room]").forEach(btn => btn.addEventListener("click", async () => {
+                const room = document.getElementById("advRoom")?.value;
+                if (!room || room < 1 || room > 8) {
+                    document.getElementById("advFeedback").innerHTML = "<span style='color:red'>❌ Select valid room</span>";
                     return;
                 }
+                const amount = parseInt(btn.dataset.quickRoom);
+                const res = await adminAdvancePayment(room, amount);
+                document.getElementById("advFeedback").innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
+                renderUI();
+            }));
+            document.querySelector(".custom-room-adv")?.addEventListener("click", async () => {
+                const room = document.getElementById("advRoom")?.value;
+                if (!room || room < 1 || room > 8) return;
                 const amount = prompt("Enter advance amount (₹):", "300");
-                if(amount) {
+                if (amount) {
                     const amtNum = parseInt(amount);
-                    if(amtNum > 0) {
-                        const res = adminAdvancePayment(room, amtNum);
+                    if (amtNum > 0) {
+                        const res = await adminAdvancePayment(room, amtNum);
                         document.getElementById("advFeedback").innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
                         renderUI();
                     }
                 }
             });
-            
-            document.getElementById("updateCostBtn")?.addEventListener("click", () => {
-                const cost = parseInt(document.getElementById("newCost").value);
-                const res = updateWaterUnitCost(cost);
-                document.getElementById("costFeedback").innerHTML = res.success ? `<span style="color:green">${res.message}</span>` : `<span style="color:red">${res.message}</span>`;
+            document.getElementById("updateCostBtn")?.addEventListener("click", async () => {
+                const cost = parseInt(document.getElementById("newCost")?.value);
+                const res = await updateWaterUnitCost(cost);
+                const fb = document.createElement("div");
+                fb.innerHTML = res.success ? `<span style="color:green">${res.message}</span>` : `<span style="color:red">${res.message}</span>`;
+                document.getElementById("updateCostBtn")?.after(fb);
+                setTimeout(() => fb.remove(), 2000);
                 renderUI();
             });
-            document.getElementById("changeAdminPassBtn")?.addEventListener("click", () => {
-                const area = document.getElementById("adminPassArea");
-                if(area.style.display === "none") {
-                    area.innerHTML = `<div class="form-inline"><div class="input-group"><label>Current Password</label><input type="password" id="adminCurPass"></div>
-                    <div class="input-group"><label>New Password</label><input type="password" id="adminNewP"></div>
-                    <div class="input-group"><label>Confirm</label><input type="password" id="adminConfP"></div>
-                    <button class="btn-primary" id="execAdminPassChange">Submit</button></div><div id="passChangeFeedback"></div>`;
-                    area.style.display = "block";
-                    document.getElementById("execAdminPassChange")?.addEventListener("click", () => {
-                        const cur = document.getElementById("adminCurPass").value, nw = document.getElementById("adminNewP").value, cf = document.getElementById("adminConfP").value;
-                        const res = updateAdminPassword(cur, nw, cf);
-                        document.getElementById("passChangeFeedback").innerHTML = res.success ? `<span style="color:green">${res.message}</span>` : `<span style="color:red">${res.message}</span>`;
-                        if(res.success) area.style.display = "none";
-                    });
-                } else area.style.display = "none";
+            document.getElementById("resetAllDataBtn")?.addEventListener("click", async () => {
+                await resetAllData();
+                renderUI();
             });
-            document.getElementById("resetAllDataBtn")?.addEventListener("click", async () => { await resetAllData(); renderUI(); });
         }
-
+        
         const heading = document.getElementById("roomDetailHeading");
-        if(!isAdmin && roomId) {
+        if (!isAdmin && roomId) {
             heading.innerText = `📊 Your Room (${roomId}) Complete Data`;
             renderRoomDetail(parseInt(roomId));
-        } else if(isAdmin) {
-            heading.innerHTML = `📊 Room-wise Details (Select Room): 
-                <select id="adminRoomSelector" style="margin-left:10px; padding:5px 12px; border-radius:40px; background:#f4f9fe;">
-                    ${[1,2,3,4,5,6,7,8].map(r => `<option value="${r}" ${adminSelectedRoom==r ? 'selected' : ''}>Room ${r}</option>`).join('')}
-                </select>`;
+        } else if (isAdmin) {
+            heading.innerHTML = `📊 Room-wise Details: <select id="adminRoomSelector" style="margin-left:10px;">${[1,2,3,4,5,6,7,8].map(r => `<option value="${r}" ${adminSelectedRoom == r ? 'selected' : ''}>Room ${r}</option>`).join('')}</select>`;
             renderRoomDetail(adminSelectedRoom);
             document.getElementById("adminRoomSelector")?.addEventListener("change", (e) => {
                 adminSelectedRoom = parseInt(e.target.value);
                 renderRoomDetail(adminSelectedRoom);
             });
         }
+        
         renderUsageTable();
-        renderPurchaseTable();  // NEW: Render purchase history table
+        renderPurchaseTable();
+        const purchaseSection = document.getElementById('purchaseHistorySection');
+        if (purchaseSection) purchaseSection.style.display = isAdmin ? 'block' : 'none';
         document.getElementById("userRoleBadge").innerHTML = isAdmin ? "👑 Admin · Full Access" : `🏠 Room ${roomId} · Member`;
-        const qrContainer = document.getElementById("qrSection");
-        if (qrContainer) {
-            if (!currentSession.isAdmin) {
-                qrContainer.innerHTML = `<div class="qr-code"><img src="QR.jpeg" alt="QR Code" style="max-width:220px; border-radius:20px;"></div>`;
-            } else {
-                qrContainer.innerHTML = "";
-            }
-        }
-        togglePurchaseHistoryVisibility();
     }
-
-    async function showDashboard() { document.getElementById("loginView").style.display="none"; document.getElementById("dashboardView").style.display="block"; await fetchFromBin(); renderUI(); }
-    function showLogin() { document.getElementById("loginView").style.display="block"; document.getElementById("dashboardView").style.display="none"; }
-
+    
+    async function showDashboard() {
+        document.getElementById("loginView").style.display = "none";
+        document.getElementById("dashboardView").style.display = "block";
+        await initializeData();
+        renderUI();
+    }
+    
+    function showLogin() {
+        document.getElementById("loginView").style.display = "block";
+        document.getElementById("dashboardView").style.display = "none";
+    }
+    
+    function persistSession() {
+        localStorage.setItem("nazrul_session", JSON.stringify(currentSession.isAdmin ? { isAdmin: true } : { isAdmin: false, room: currentSession.room }));
+    }
+    
+    function loadPersistedSession() {
+        const saved = localStorage.getItem("nazrul_session");
+        if (saved) {
+            try {
+                const session = JSON.parse(saved);
+                if (session.isAdmin === true) {
+                    currentSession = { isAdmin: true, room: null };
+                    return true;
+                } else if (session.room && session.room >= 1 && session.room <= 8) {
+                    currentSession = { isAdmin: false, room: session.room.toString() };
+                    return true;
+                }
+            } catch (e) {}
+        }
+        return false;
+    }
+    
+    function clearSession() {
+        localStorage.removeItem("nazrul_session");
+        currentSession = { isAdmin: false, room: null };
+    }
+    
     async function init() {
-        await fetchFromBin();
+        await initializeData();
         document.querySelectorAll(".tab-btn").forEach(btn => btn.onclick = () => {
             const t = btn.dataset.tab;
-            document.getElementById("userLoginForm").style.display = t==="user"?"flex":"none";
-            document.getElementById("adminLoginForm").style.display = t==="admin"?"flex":"none";
-            document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+            document.getElementById("userLoginForm").style.display = t === "user" ? "flex" : "none";
+            document.getElementById("adminLoginForm").style.display = t === "admin" ? "flex" : "none";
+            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
             btn.classList.add("active");
         });
         document.getElementById("userLoginBtn").onclick = () => {
-            const room = document.getElementById("userRoom").value, pass = document.getElementById("userPass").value;
-            if(currentData.room_passwords[room] === pass) { currentSession = { isAdmin: false, room: room.toString() }; persistSession(); showDashboard(); }
-            else { const err = document.getElementById("userError"); err.innerText="Invalid room number or password"; err.style.display="block"; setTimeout(()=>err.style.display="none",2000); }
+            const room = document.getElementById("userRoom").value;
+            const pass = document.getElementById("userPass").value;
+            if (currentData.room_passwords[room] === pass) {
+                currentSession = { isAdmin: false, room: room.toString() };
+                persistSession();
+                showDashboard();
+            } else {
+                const err = document.getElementById("userError");
+                err.innerText = "Invalid room number or password";
+                err.style.display = "block";
+                setTimeout(() => err.style.display = "none", 2000);
+            }
         };
         document.getElementById("adminLoginBtn").onclick = () => {
-            const user = document.getElementById("adminUser").value, pass = document.getElementById("adminPass").value;
-            if(user === currentData.admin_cred.username && pass === currentData.admin_cred.password) { currentSession = { isAdmin: true, room: null }; persistSession(); showDashboard(); }
-            else { const err = document.getElementById("adminError"); err.innerText="Invalid admin credentials"; err.style.display="block"; setTimeout(()=>err.style.display="none",2000); }
+            const user = document.getElementById("adminUser").value;
+            const pass = document.getElementById("adminPass").value;
+            if (user === currentData.admin_cred.username && pass === currentData.admin_cred.password) {
+                currentSession = { isAdmin: true, room: null };
+                persistSession();
+                showDashboard();
+            } else {
+                const err = document.getElementById("adminError");
+                err.innerText = "Invalid admin credentials";
+                err.style.display = "block";
+                setTimeout(() => err.style.display = "none", 2000);
+            }
         };
-        document.getElementById("logoutBtn").onclick = () => { clearSession(); showLogin(); };
-        if(loadPersistedSession()) await showDashboard(); else showLogin();
+        document.getElementById("logoutBtn").onclick = () => {
+            clearSession();
+            showLogin();
+        };
+        if (loadPersistedSession()) await showDashboard();
+        else showLogin();
     }
+    
     init();
 </script>
 </body>
