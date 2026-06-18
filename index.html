@@ -16,6 +16,7 @@
         }
     </script>
     <style>
+        /* Keep existing styles */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #e9f0f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 16px; min-height: 100vh; display: flex; align-items: center; justify-content: center; line-height: 1.4; color: #1a2c3e; }
         .app-container { max-width: 1200px; width: 100%; margin: 0 auto; }
@@ -29,13 +30,16 @@
         .input-group label { font-size: 0.85rem; font-weight: 600; color: #2c4c6e; }
         .input-group input { padding: 12px 16px; border: 1px solid #cbdbe0; border-radius: 28px; font-size: 1rem; background: #fff; font-family: inherit; }
         .input-group input:focus { border-color: #1f6392; outline: none; box-shadow: 0 0 0 3px rgba(31,99,146,0.15); }
+        .input-group input:invalid { border-color: #cccaca; }
         .btn-primary { background: #1f6392; color: white; border: none; padding: 12px 16px; border-radius: 40px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.15s; }
         .btn-primary:hover { background: #075a8b; transform: scale(0.98); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
         .btn-secondary { background: #e2e8f0; color: #1f3b4c; border: none; padding: 8px 20px; border-radius: 40px; font-weight: 500; cursor: pointer; }
         .btn-danger { background: #c2412c; color: white; }
         .btn-warning { background: #b45309; color: white; }
         .btn-success { background: #2b7a3e; }
         .error-msg { color: #bc392e; background: #ffe6e5; padding: 8px; border-radius: 30px; text-align: center; font-size: 0.8rem; }
+        .success-msg { color: #155724; background: #d4edda; padding: 8px; border-radius: 30px; text-align: center; font-size: 0.8rem; }
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px 20px; background: #1e3a5f; color: white; }
         .dashboard-title h2 { font-size: 1.25rem; font-weight: 600; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .user-badge { background: #2e5a7f; padding: 5px 14px; border-radius: 40px; font-size: 0.85rem; font-weight: 500; }
@@ -60,6 +64,8 @@
         .db-status { background: #0f3b2c; padding: 4px 12px; border-radius: 40px; font-size: 0.7rem; font-family: monospace; }
         .auto-sync-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e3a5f; color: white; padding: 10px 20px; border-radius: 40px; z-index: 1001; font-size: 0.8rem; animation: fadeInOut 3s ease forwards; pointer-events: none; }
         @keyframes fadeInOut { 0% { opacity: 0; transform: translateX(-50%) translateY(20px); } 15% { opacity: 1; transform: translateX(-50%) translateY(0); } 85% { opacity: 1; transform: translateX(-50%) translateY(0); } 100% { opacity: 0; transform: translateX(-50%) translateY(-20px); } }
+        .input-error { border-color: #dc3545 !important; }
+        .input-error:focus { box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15) !important; }
         @media (max-width: 640px) { .stat-value { font-size: 1.5rem; } .form-inline { flex-direction: column; align-items: stretch; } }
     </style>
 </head>
@@ -69,8 +75,30 @@
     <div id="loginView" class="login-panel">
         <div class="login-wrapper">
             <div class="tab-buttons"><button class="tab-btn active" data-tab="user">🔑 Login as Member</button><button class="tab-btn" data-tab="admin">👑 Login as Admin</button></div>
-            <div id="userLoginForm" class="login-form"><div class="input-group"><label>🏠 Room Number (1-8)</label><input type="number" id="userRoom" placeholder="e.g., 3" min="1" max="8"></div><div class="input-group"><label>🔐 Room Password</label><input type="password" id="userPass" placeholder="Enter password"></div><button class="btn-primary" id="userLoginBtn">Login as Member</button><div id="userError" class="error-msg" style="display:none;"></div></div>
-            <div id="adminLoginForm" class="login-form" style="display:none;"><div class="input-group"><label>👤 Admin Username</label><input type="text" id="adminUser" placeholder="admin"></div><div class="input-group"><label>🔒 Admin Password</label><input type="password" id="adminPass" placeholder="••••••"></div><button class="btn-primary" id="adminLoginBtn">Admin Access</button><div id="adminError" class="error-msg" style="display:none;"></div></div>
+            <div id="userLoginForm" class="login-form">
+                <div class="input-group">
+                    <label>🏠 Room Number (1-8)</label>
+                    <input type="number" id="userRoom" placeholder="e.g., 3" min="1" max="8" required>
+                </div>
+                <div class="input-group">
+                    <label>🔐 Room Password</label>
+                    <input type="password" id="userPass" placeholder="Enter password" required minlength="6">
+                </div>
+                <button class="btn-primary" id="userLoginBtn">Login as Member</button>
+                <div id="userError" class="error-msg" style="display:none;"></div>
+            </div>
+            <div id="adminLoginForm" class="login-form" style="display:none;">
+                <div class="input-group">
+                    <label>👤 Admin Username</label>
+                    <input type="text" id="adminUser" placeholder="admin" required>
+                </div>
+                <div class="input-group">
+                    <label>🔒 Admin Password</label>
+                    <input type="password" id="adminPass" placeholder="••••••" required minlength="6">
+                </div>
+                <button class="btn-primary" id="adminLoginBtn">Admin Access</button>
+                <div id="adminError" class="error-msg" style="display:none;"></div>
+            </div>
         </div>
     </div>
     <div id="dashboardView" class="dashboard-panel" style="display:none;">
@@ -95,6 +123,7 @@
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-analytics.js";
 
     // ==================== DATABASE CONFIGURATIONS ====================
+    // NOTE: These should be moved to environment variables in production
     const firebaseConfig = {
         apiKey: "AIzaSyBXQfK7GsFhnoqQ-CCBALUpAt_mqrW3ynU",
         authDomain: "waterdb-58644.firebaseapp.com",
@@ -131,6 +160,63 @@
     let currentSession = { isAdmin: false, room: null };
     let adminSelectedRoom = 1;
     let isSyncing = false;
+
+    // ==================== VALIDATION HELPERS ====================
+    function validateRoomNumber(room) {
+        const num = parseInt(room);
+        if (isNaN(num) || num < 1 || num > 8) {
+            return { valid: false, message: "Room number must be between 1 and 8" };
+        }
+        return { valid: true, value: num };
+    }
+
+    function validateAmount(amount) {
+        const num = parseFloat(amount);
+        if (isNaN(num) || num <= 0) {
+            return { valid: false, message: "Amount must be a positive number" };
+        }
+        if (num > 100000) {
+            return { valid: false, message: "Amount cannot exceed ₹100,000" };
+        }
+        return { valid: true, value: num };
+    }
+
+    function validateUnits(units) {
+        const num = parseFloat(units);
+        if (isNaN(num) || num <= 0) {
+            return { valid: false, message: "Units must be a positive number" };
+        }
+        if (num > 10000) {
+            return { valid: false, message: "Units cannot exceed 10,000" };
+        }
+        return { valid: true, value: num };
+    }
+
+    function sanitizeString(input) {
+        if (!input) return '';
+        return String(input).trim().slice(0, 100);
+    }
+
+    function showError(element, message) {
+        if (element) {
+            element.textContent = message;
+            element.style.display = 'block';
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 3000);
+        }
+    }
+
+    function showSuccess(element, message) {
+        if (element) {
+            element.className = 'success-msg';
+            element.textContent = message;
+            element.style.display = 'block';
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 3000);
+        }
+    }
 
     function showLoading(show) { 
         const el = document.getElementById("loadingIndicator");
@@ -212,24 +298,19 @@
     }
 
     // ==================== SMART AUTO-RECOVERY ====================
-    // Compares two data sources and returns the one with more/later data
     function compareDataAndGetLatest(source1, source2, source1Name, source2Name) {
         if (!source1 && !source2) return null;
         if (!source1) return { data: source2, source: source2Name };
         if (!source2) return { data: source1, source: source1Name };
         
-        // Calculate data completeness score
         let score1 = 0, score2 = 0;
         
-        // Check total_water_stored (more water storage means more recent operations)
         if (source1.total_water_stored !== undefined) score1 += source1.total_water_stored / 100;
         if (source2.total_water_stored !== undefined) score2 += source2.total_water_stored / 100;
         
-        // Check total_balance_pool
         if (source1.total_balance_pool !== undefined) score1 += source1.total_balance_pool / 1000;
         if (source2.total_balance_pool !== undefined) score2 += source2.total_balance_pool / 1000;
         
-        // Check number of logs (more logs = more activity)
         if (source1.detailed_usage_log) score1 += source1.detailed_usage_log.length;
         if (source2.detailed_usage_log) score2 += source2.detailed_usage_log.length;
         
@@ -239,13 +320,11 @@
         if (source1.advance_transactions) score1 += source1.advance_transactions.length;
         if (source2.advance_transactions) score2 += source2.advance_transactions.length;
         
-        // Check timestamps if available
         if (source1.lastUpdatedTimestamp && source2.lastUpdatedTimestamp) {
             if (source1.lastUpdatedTimestamp > source2.lastUpdatedTimestamp) score1 += 10;
             else score2 += 10;
         }
         
-        // Return the one with higher score
         if (score1 >= score2) {
             return { data: source1, source: source1Name, score: score1 };
         } else {
@@ -253,117 +332,128 @@
         }
     }
 
-    // Main auto-sync function - called on every load and after every write
     async function autoSyncDatabases(forceSync = false) {
         if (isSyncing) return;
         isSyncing = true;
         
         updateDbStatus("🔄 Syncing...");
         
-        // Read from both databases
-        const firestoreResult = await readFromFirestore();
-        const jsonbinResult = await readFromJSONBin();
-        
-        const firestoreData = firestoreResult.success ? firestoreResult.data : null;
-        const jsonbinData = jsonbinResult.success ? jsonbinResult.data : null;
-        
-        // Compare and find latest/best data
-        const latest = compareDataAndGetLatest(firestoreData, jsonbinData, "Firestore", "JSONBin");
-        
-        if (latest) {
-            const currentDataHash = JSON.stringify(currentData);
-            const latestDataHash = JSON.stringify(latest.data);
+        try {
+            const firestoreResult = await readFromFirestore();
+            const jsonbinResult = await readFromJSONBin();
             
-            // If latest data is different from current, update currentData
-            if (currentDataHash !== latestDataHash && latest.data) {
-                // Ensure all fields exist in the recovered data
-                const recoveredData = { ...DEFAULT_DATA, ...latest.data };
-                if (!recoveredData.advance_transactions) recoveredData.advance_transactions = [];
-                if (!recoveredData.water_purchase_log) recoveredData.water_purchase_log = [];
-                if (!recoveredData.detailed_usage_log) recoveredData.detailed_usage_log = [];
-                if (!recoveredData.monthly_water_usage) recoveredData.monthly_water_usage = { "1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0 };
-                if (!recoveredData.room_balances) recoveredData.room_balances = { "1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0 };
-                if (!recoveredData.room_passwords) recoveredData.room_passwords = { "1":"room123","2":"room123","3":"room123","4":"room123","5":"room123","6":"room123","7":"room123","8":"room123" };
-                if (recoveredData.water_unit_cost === undefined) recoveredData.water_unit_cost = 30;
-                if (recoveredData.total_balance_pool === undefined) recoveredData.total_balance_pool = 0;
+            const firestoreData = firestoreResult.success ? firestoreResult.data : null;
+            const jsonbinData = jsonbinResult.success ? jsonbinResult.data : null;
+            
+            const latest = compareDataAndGetLatest(firestoreData, jsonbinData, "Firestore", "JSONBin");
+            
+            if (latest) {
+                const currentDataHash = JSON.stringify(currentData);
+                const latestDataHash = JSON.stringify(latest.data);
                 
-                currentData = recoveredData;
+                if (currentDataHash !== latestDataHash && latest.data) {
+                    const recoveredData = { ...DEFAULT_DATA, ...latest.data };
+                    if (!recoveredData.advance_transactions) recoveredData.advance_transactions = [];
+                    if (!recoveredData.water_purchase_log) recoveredData.water_purchase_log = [];
+                    if (!recoveredData.detailed_usage_log) recoveredData.detailed_usage_log = [];
+                    if (!recoveredData.monthly_water_usage) recoveredData.monthly_water_usage = { "1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0 };
+                    if (!recoveredData.room_balances) recoveredData.room_balances = { "1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0 };
+                    if (!recoveredData.room_passwords) recoveredData.room_passwords = { "1":"room123","2":"room123","3":"room123","4":"room123","5":"room123","6":"room123","7":"room123","8":"room123" };
+                    if (recoveredData.water_unit_cost === undefined) recoveredData.water_unit_cost = 30;
+                    if (recoveredData.total_balance_pool === undefined) recoveredData.total_balance_pool = 0;
+                    
+                    currentData = recoveredData;
+                    localStorage.setItem("nazrul_water_backup", JSON.stringify(currentData));
+                    
+                    if (latest.source === "JSONBin" && firestoreData) {
+                        showToast(`🔄 Auto-restored from JSONBin backup (more complete data)`, "success");
+                    } else if (latest.source === "Firestore" && jsonbinData) {
+                        showToast(`🔄 Auto-synced Firestore data to backup`, "success");
+                    }
+                }
+                
+                let syncedAny = false;
+                
+                if (!firestoreData || forceSync || JSON.stringify(firestoreData) !== JSON.stringify(latest.data)) {
+                    const writeOk = await writeToFirestore(latest.data);
+                    if (writeOk) syncedAny = true;
+                }
+                
+                if (!jsonbinData || forceSync || JSON.stringify(jsonbinData) !== JSON.stringify(latest.data)) {
+                    const writeOk = await writeToJSONBin(latest.data);
+                    if (writeOk) syncedAny = true;
+                }
+                
+                if (syncedAny) {
+                    updateDbStatus("✅ DB Synced");
+                } else {
+                    updateDbStatus("✅ Synced");
+                }
+            } else {
+                currentData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+                await writeToFirestore(currentData);
+                await writeToJSONBin(currentData);
                 localStorage.setItem("nazrul_water_backup", JSON.stringify(currentData));
-                
-                // Show which source provided the data
-                if (latest.source === "JSONBin" && firestoreData) {
-                    showToast(`🔄 Auto-restored from JSONBin backup (more complete data)`, "success");
-                } else if (latest.source === "Firestore" && jsonbinData) {
-                    showToast(`🔄 Auto-synced Firestore data to backup`, "success");
+                updateDbStatus("✅ Initialized");
+                showToast("🆕 New system initialized in both databases", "success");
+            }
+        } catch (error) {
+            console.error("Auto-sync error:", error);
+            updateDbStatus("⚠️ Sync Error");
+            showToast("⚠️ Database sync error - using local data", "error");
+            
+            // Try to recover from localStorage if available
+            const localBackup = localStorage.getItem("nazrul_water_backup");
+            if (localBackup) {
+                try {
+                    const parsed = JSON.parse(localBackup);
+                    if (parsed && Object.keys(parsed).length > 2) {
+                        currentData = { ...DEFAULT_DATA, ...parsed };
+                        showToast("🔄 Recovered from local backup", "success");
+                    }
+                } catch (e) {
+                    console.error("Local backup recovery error:", e);
                 }
             }
-            
-            // Now sync the latest data to BOTH databases to ensure consistency
-            let syncedAny = false;
-            
-            // Write to Firestore if needed (if Firestore doesn't have latest or force sync)
-            if (!firestoreData || forceSync || JSON.stringify(firestoreData) !== JSON.stringify(latest.data)) {
-                const writeOk = await writeToFirestore(latest.data);
-                if (writeOk) syncedAny = true;
-            }
-            
-            // Write to JSONBin if needed
-            if (!jsonbinData || forceSync || JSON.stringify(jsonbinData) !== JSON.stringify(latest.data)) {
-                const writeOk = await writeToJSONBin(latest.data);
-                if (writeOk) syncedAny = true;
-            }
-            
-            if (syncedAny) {
-                updateDbStatus("✅ DB Synced");
-            } else {
-                updateDbStatus("✅ Synced");
-            }
-        } else {
-            // No data in either database - initialize defaults
-            currentData = JSON.parse(JSON.stringify(DEFAULT_DATA));
-            await writeToFirestore(currentData);
-            await writeToJSONBin(currentData);
-            localStorage.setItem("nazrul_water_backup", JSON.stringify(currentData));
-            updateDbStatus("✅ Initialized");
-            showToast("🆕 New system initialized in both databases", "success");
         }
         
         isSyncing = false;
         return true;
     }
 
-    // Called after any data modification - syncs changes to both DBs
     async function syncAfterModification() {
         if (isSyncing) return;
         isSyncing = true;
         
         updateDbStatus("🔄 Syncing changes...");
         
-        // Write currentData to both databases
-        const firestoreOk = await writeToFirestore(currentData);
-        const jsonbinOk = await writeToJSONBin(currentData);
-        
-        if (firestoreOk && jsonbinOk) {
-            updateDbStatus("✅ Synced");
-        } else if (firestoreOk) {
-            updateDbStatus("⚠️ Firestore OK, JSONBin offline");
-        } else if (jsonbinOk) {
-            updateDbStatus("⚠️ JSONBin OK, Firestore offline");
-        } else {
-            updateDbStatus("⚠️ Both offline - using local");
+        try {
+            const firestoreOk = await writeToFirestore(currentData);
+            const jsonbinOk = await writeToJSONBin(currentData);
+            
+            if (firestoreOk && jsonbinOk) {
+                updateDbStatus("✅ Synced");
+            } else if (firestoreOk) {
+                updateDbStatus("⚠️ Firestore OK, JSONBin offline");
+            } else if (jsonbinOk) {
+                updateDbStatus("⚠️ JSONBin OK, Firestore offline");
+            } else {
+                updateDbStatus("⚠️ Both offline - using local");
+            }
+            
+            localStorage.setItem("nazrul_water_backup", JSON.stringify(currentData));
+        } catch (error) {
+            console.error("Sync error:", error);
+            updateDbStatus("⚠️ Sync Failed");
         }
-        
-        // Update local backup
-        localStorage.setItem("nazrul_water_backup", JSON.stringify(currentData));
         
         isSyncing = false;
         renderUI();
     }
 
-    // Initial load - auto-recover from best available source
     async function initializeData() {
         showLoading(true);
-        await autoSyncDatabases(true); // Force sync on load
+        await autoSyncDatabases(true);
         showLoading(false);
     }
 
@@ -371,68 +461,123 @@
     const getUnitCost = () => currentData.water_unit_cost || 30;
     
     function addAdvanceTransaction(room, amount) {
+        const validRoom = validateRoomNumber(room);
+        if (!validRoom.valid) return false;
+        
         currentData.advance_transactions.unshift({ 
-            room: room.toString(), amount, date: new Date().toISOString().slice(0,10), timestamp: Date.now() 
+            room: validRoom.value.toString(), 
+            amount: Math.round(amount * 100) / 100,
+            date: new Date().toISOString().slice(0,10), 
+            timestamp: Date.now() 
         });
         if (currentData.advance_transactions.length > 50) currentData.advance_transactions.pop();
+        return true;
     }
     
     async function adminAddWaterStorage(units, addedBy = "Admin") {
-        if (units <= 0) return { success: false, message: "Invalid units" };
-        const waterCost = units * getUnitCost();
-        if (waterCost > currentData.total_balance_pool) {
-            return { success: false, message: `Insufficient Total Balance (₹${currentData.total_balance_pool}) to purchase ${units} units. Need ₹${waterCost}.` };
+        const validUnits = validateUnits(units);
+        if (!validUnits.valid) {
+            return { success: false, message: validUnits.message };
         }
+        
+        const waterCost = validUnits.value * getUnitCost();
+        if (waterCost > currentData.total_balance_pool) {
+            return { success: false, message: `Insufficient Total Balance (₹${currentData.total_balance_pool}) to purchase ${validUnits.value} units. Need ₹${waterCost}.` };
+        }
+        
         currentData.total_balance_pool -= waterCost;
-        currentData.total_water_stored += units;
+        currentData.total_water_stored += validUnits.value;
         currentData.water_purchase_log.unshift({ 
-            date: new Date().toISOString().slice(0,10), units, cost: waterCost, added_by: addedBy, timestamp: Date.now() 
+            date: new Date().toISOString().slice(0,10), 
+            units: validUnits.value, 
+            cost: Math.round(waterCost * 100) / 100, 
+            added_by: sanitizeString(addedBy), 
+            timestamp: Date.now() 
         });
         currentData.detailed_usage_log.unshift({ 
-            room: "ADMIN_PURCHASE", units, date: new Date().toISOString().slice(0,10), cost: waterCost 
+            room: "ADMIN_PURCHASE", 
+            units: validUnits.value, 
+            date: new Date().toISOString().slice(0,10), 
+            cost: Math.round(waterCost * 100) / 100 
         });
         if (currentData.water_purchase_log.length > 50) currentData.water_purchase_log.pop();
         if (currentData.detailed_usage_log.length > 50) currentData.detailed_usage_log.pop();
         await syncAfterModification();
-        return { success: true, message: `✅ Added ${units} units water. ₹${waterCost} deducted. Storage: ${currentData.total_water_stored} units.` };
+        return { success: true, message: `✅ Added ${validUnits.value} units water. ₹${Math.round(waterCost * 100) / 100} deducted. Storage: ${currentData.total_water_stored} units.` };
     }
     
     async function roomConsumeWater(room, units) {
-        room = room.toString();
-        let roomBalance = currentData.room_balances[room] || 0;
-        let requiredCost = units * getUnitCost();
-        if (requiredCost > roomBalance) {
-            return { success: false, message: `Insufficient room balance! Need ₹${requiredCost}, available ₹${roomBalance}` };
+        const validRoom = validateRoomNumber(room);
+        if (!validRoom.valid) {
+            return { success: false, message: validRoom.message };
         }
-        if (units > currentData.total_water_stored) {
+        
+        const validUnits = validateUnits(units);
+        if (!validUnits.valid) {
+            return { success: false, message: validUnits.message };
+        }
+        
+        const roomStr = validRoom.value.toString();
+        let roomBalance = currentData.room_balances[roomStr] || 0;
+        let requiredCost = validUnits.value * getUnitCost();
+        let roundedCost = Math.round(requiredCost * 100) / 100;
+        
+        if (roundedCost > roomBalance) {
+            return { success: false, message: `Insufficient room balance! Need ₹${roundedCost}, available ₹${Math.round(roomBalance * 100) / 100}` };
+        }
+        if (validUnits.value > currentData.total_water_stored) {
             return { success: false, message: `Not enough water. Available: ${currentData.total_water_stored} units` };
         }
-        currentData.room_balances[room] -= requiredCost;
-        currentData.total_water_stored -= units;
-        currentData.monthly_water_usage[room] = (currentData.monthly_water_usage[room] || 0) + units;
+        
+        currentData.room_balances[roomStr] = Math.round((roomBalance - roundedCost) * 100) / 100;
+        currentData.total_water_stored = Math.round((currentData.total_water_stored - validUnits.value) * 100) / 100;
+        currentData.monthly_water_usage[roomStr] = Math.round(((currentData.monthly_water_usage[roomStr] || 0) + validUnits.value) * 100) / 100;
         currentData.detailed_usage_log.unshift({ 
-            room: room, units, date: new Date().toISOString().slice(0,10), cost: requiredCost 
+            room: roomStr, 
+            units: validUnits.value, 
+            date: new Date().toISOString().slice(0,10), 
+            cost: roundedCost 
         });
         if (currentData.detailed_usage_log.length > 50) currentData.detailed_usage_log.pop();
         await syncAfterModification();
-        return { success: true, message: `Consumed ${units} units. Cost ₹${requiredCost}. New balance: ₹${currentData.room_balances[room]}` };
+        return { success: true, message: `Consumed ${validUnits.value} units. Cost ₹${roundedCost}. New balance: ₹${Math.round(currentData.room_balances[roomStr] * 100) / 100}` };
     }
     
     async function adminAdvancePayment(room, amount) {
-        if (amount <= 0) return { success: false, message: "Amount must be positive" };
-        room = room.toString();
-        currentData.room_balances[room] = (currentData.room_balances[room] || 0) + amount;
-        currentData.total_balance_pool += amount;
-        addAdvanceTransaction(room, amount);
+        const validRoom = validateRoomNumber(room);
+        if (!validRoom.valid) {
+            return { success: false, message: validRoom.message };
+        }
+        
+        const validAmount = validateAmount(amount);
+        if (!validAmount.valid) {
+            return { success: false, message: validAmount.message };
+        }
+        
+        const roomStr = validRoom.value.toString();
+        currentData.room_balances[roomStr] = Math.round(((currentData.room_balances[roomStr] || 0) + validAmount.value) * 100) / 100;
+        currentData.total_balance_pool = Math.round((currentData.total_balance_pool + validAmount.value) * 100) / 100;
+        addAdvanceTransaction(roomStr, validAmount.value);
         await syncAfterModification();
-        return { success: true, message: `₹${amount} added to Room ${room}. Room balance: ₹${currentData.room_balances[room]}` };
+        return { success: true, message: `₹${validAmount.value} added to Room ${validRoom.value}. Room balance: ₹${Math.round(currentData.room_balances[roomStr] * 100) / 100}` };
     }
     
     async function updateWaterUnitCost(cost) {
-        if (cost < 1) return { success: false, message: "Cost must be at least ₹1" };
-        currentData.water_unit_cost = cost;
+        const validCost = validateAmount(cost);
+        if (!validCost.valid) {
+            return { success: false, message: validCost.message };
+        }
+        
+        if (validCost.value < 1) {
+            return { success: false, message: "Cost must be at least ₹1" };
+        }
+        if (validCost.value > 1000) {
+            return { success: false, message: "Cost cannot exceed ₹1000 per unit" };
+        }
+        
+        currentData.water_unit_cost = Math.round(validCost.value * 100) / 100;
         await syncAfterModification();
-        return { success: true, message: `Unit cost updated to ₹${cost}` };
+        return { success: true, message: `Unit cost updated to ₹${currentData.water_unit_cost}` };
     }
     
     async function resetAllData() {
@@ -456,7 +601,7 @@
             return;
         }
         tbody.innerHTML = purchases.slice(0, 20).map(p => 
-            `<tr><td>${p.date}</td><td>${p.units} units</td><td>₹${p.cost}</td><td>${p.added_by || "Admin"}</td></tr>`
+            `<tr><td>${p.date || 'N/A'}</td><td>${p.units || 0} units</td><td>₹${p.cost || 0}</td><td>${p.added_by || "Admin"}</td></tr>`
         ).join('');
     }
     
@@ -472,7 +617,7 @@
             return;
         }
         tbody.innerHTML = logs.map(l => 
-            `<tr><td>Room ${l.room}</td><td>${l.units} units</td><td>${l.date}</td><td>₹${l.cost}</td></tr>`
+            `<tr><td>Room ${l.room}</td><td>${l.units || 0} units</td><td>${l.date || 'N/A'}</td><td>₹${l.cost || 0}</td></tr>`
         ).join('');
     }
     
@@ -482,15 +627,15 @@
         const r = roomNum.toString();
         const balance = currentData.room_balances[r] || 0;
         const monthly = currentData.monthly_water_usage[r] || 0;
-        const roomAdvances = currentData.advance_transactions.filter(t => t.room === r);
+        const roomAdvances = (currentData.advance_transactions || []).filter(t => t.room === r);
         let html = `<div class="room-data-card"><h4>🏠 Room ${roomNum} - Complete Details</h4>
-            <p><strong>💰 Current Balance:</strong> ₹${balance}</p>
-            <p><strong>📊 This Month's Usage:</strong> ${monthly} units (₹${monthly * getUnitCost()})</p>
+            <p><strong>💰 Current Balance:</strong> ₹${Math.round(balance * 100) / 100}</p>
+            <p><strong>📊 This Month's Usage:</strong> ${Math.round(monthly * 100) / 100} units (₹${Math.round(monthly * getUnitCost() * 100) / 100})</p>
             <p><strong>💵 Cost Per Unit:</strong> ₹${getUnitCost()}</p>
             <h5>📜 Advance Payment History</h5>`;
         if (roomAdvances.length) {
             html += `<table><thead><tr><th>Date</th><th>Amount (₹)</th></tr></thead><tbody>`;
-            roomAdvances.forEach(t => { html += `<tr><td>${t.date}</td><td>₹${t.amount}</td></tr>`; });
+            roomAdvances.slice(0, 10).forEach(t => { html += `<tr><td>${t.date || 'N/A'}</td><td>₹${t.amount || 0}</td></tr>`; });
             html += `</tbody></table>`;
         } else {
             html += `<p>No advance payments recorded.</p>`;
@@ -506,86 +651,116 @@
         const actionDiv = document.getElementById("actionArea");
         if (!statsDiv || !actionDiv) return;
         
-        let statsHtml = `<div class="stat-card"><h3>💧 Water Storage</h3><div class="stat-value">${currentData.total_water_stored} units</div></div>`;
+        let statsHtml = `<div class="stat-card"><h3>💧 Water Storage</h3><div class="stat-value">${Math.round(currentData.total_water_stored * 100) / 100} units</div></div>`;
         if (isAdmin) {
-            statsHtml += `<div class="stat-card"><h3>💰 Total Balance</h3><div class="stat-value">₹${currentData.total_balance_pool}</div></div>
+            statsHtml += `<div class="stat-card"><h3>💰 Total Balance</h3><div class="stat-value">₹${Math.round(currentData.total_balance_pool * 100) / 100}</div></div>
                          <div class="stat-card"><h3>💵 Cost/Unit</h3><div class="stat-value">₹${getUnitCost()}</div></div>`;
         } else if (roomId) {
             const myBal = currentData.room_balances[roomId] || 0;
-            statsHtml += `<div class="stat-card"><h3>🏠 Your Balance</h3><div class="stat-value" style="color:${myBal < 60 ? '#bc392e' : '#1e3a5f'}">₹${myBal}</div></div>
-                         <div class="stat-card"><h3>📊 Your Monthly Usage</h3><div class="stat-value">${currentData.monthly_water_usage[roomId] || 0} units</div></div>`;
+            statsHtml += `<div class="stat-card"><h3>🏠 Your Balance</h3><div class="stat-value" style="color:${myBal < 60 ? '#bc392e' : '#1e3a5f'}">₹${Math.round(myBal * 100) / 100}</div></div>
+                         <div class="stat-card"><h3>📊 Your Monthly Usage</h3><div class="stat-value">${Math.round((currentData.monthly_water_usage[roomId] || 0) * 100) / 100} units</div></div>`;
         }
         statsDiv.innerHTML = statsHtml;
         
         if (!isAdmin && roomId) {
             actionDiv.innerHTML = `<div class="action-card"><h3>🚰 Consume Water (Room ${roomId})</h3>
                 <div class="form-inline"><div class="input-group"><label>Units (1 unit = ₹${getUnitCost()})</label>
-                <input type="number" id="userUnits" min="1" placeholder="Units"></div>
+                <input type="number" id="userUnits" min="1" placeholder="Units" required></div>
                 <button class="btn-primary" id="useWaterBtn">💧 Use Water</button></div>
                 <div id="userActionFeedback"></div></div>`;
             document.getElementById("useWaterBtn")?.addEventListener("click", async () => {
-                const units = parseInt(document.getElementById("userUnits")?.value);
-                if (isNaN(units) || units <= 0) return;
-                const res = await roomConsumeWater(roomId, units);
+                const units = document.getElementById("userUnits")?.value;
                 const fb = document.getElementById("userActionFeedback");
-                if (fb) fb.innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
+                if (!fb) return;
+                
+                const validUnits = validateUnits(units);
+                if (!validUnits.valid) {
+                    fb.innerHTML = `<span style="color:red">❌ ${validUnits.message}</span>`;
+                    return;
+                }
+                
+                const res = await roomConsumeWater(roomId, validUnits.value);
+                fb.innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
                 if (res.success) renderUI();
             });
         } else if (isAdmin) {
             actionDiv.innerHTML = `<div class="action-card"><h3>🌊 Add Water to Storage</h3>
-                <div class="form-inline"><div class="input-group"><label>Units to Add</label><input type="number" id="addWaterUnits" min="1"></div>
+                <div class="form-inline"><div class="input-group"><label>Units to Add</label><input type="number" id="addWaterUnits" min="1" required></div>
                 <button class="btn-primary btn-success" id="adminAddWaterBtn">➕ Add Water</button></div>
                 <div id="adminWaterFeedback"></div></div>
                 <div class="action-card"><h3>💰 Quick Advance</h3>
-                <div class="form-inline"><div class="input-group"><label>Room Number (1-8)</label><input type="number" id="advRoom" min="1" max="8" placeholder="Room"></div>
+                <div class="form-inline"><div class="input-group"><label>Room Number (1-8)</label><input type="number" id="advRoom" min="1" max="8" placeholder="Room" required></div>
                 <div class="quick-advance-grid"><button class="quick-advance-btn" data-quick-room="100">₹100</button>
                 <button class="quick-advance-btn" data-quick-room="200">₹200</button>
+                <button class="quick-advance-btn" data-quick-room="500">₹500</button>
                 <button class="quick-advance-btn custom-room-adv">✏️ Custom</button></div>
                 <div id="advFeedback"></div></div></div>
                 <div class="action-card"><h3>⚙️ System Settings</h3>
-                <div class="form-inline"><div class="input-group"><label>Unit Cost (₹)</label><input type="number" id="newCost" min="1" value="${getUnitCost()}"></div>
+                <div class="form-inline"><div class="input-group"><label>Unit Cost (₹)</label><input type="number" id="newCost" min="1" value="${getUnitCost()}" required></div>
                 <button class="btn-primary btn-warning" id="updateCostBtn">Update Cost</button></div></div>
                 <div class="action-card"><button class="btn-primary btn-danger" id="resetAllDataBtn">🗑️ RESET ALL DATA</button></div>`;
             
             document.getElementById("adminAddWaterBtn")?.addEventListener("click", async () => {
-                const units = parseInt(document.getElementById("addWaterUnits")?.value);
-                const res = await adminAddWaterStorage(units, "Admin");
-                document.getElementById("adminWaterFeedback").innerHTML = res.success ? `<span style="color:green">${res.message}</span>` : `<span style="color:red">${res.message}</span>`;
-                if (res.success) renderUI();
-            });
-            document.querySelectorAll("[data-quick-room]").forEach(btn => btn.addEventListener("click", async () => {
-                const room = document.getElementById("advRoom")?.value;
-                if (!room || room < 1 || room > 8) {
-                    document.getElementById("advFeedback").innerHTML = "<span style='color:red'>❌ Select valid room</span>";
+                const units = document.getElementById("addWaterUnits")?.value;
+                const fb = document.getElementById("adminWaterFeedback");
+                if (!fb) return;
+                
+                const validUnits = validateUnits(units);
+                if (!validUnits.valid) {
+                    fb.innerHTML = `<span style="color:red">❌ ${validUnits.message}</span>`;
                     return;
                 }
+                
+                const res = await adminAddWaterStorage(validUnits.value, "Admin");
+                fb.innerHTML = res.success ? `<span style="color:green">${res.message}</span>` : `<span style="color:red">${res.message}</span>`;
+                if (res.success) renderUI();
+            });
+            
+            document.querySelectorAll("[data-quick-room]").forEach(btn => btn.addEventListener("click", async () => {
+                const room = document.getElementById("advRoom")?.value;
+                const fb = document.getElementById("advFeedback");
+                if (!fb) return;
+                
+                if (!room || room < 1 || room > 8) {
+                    fb.innerHTML = "<span style='color:red'>❌ Select valid room (1-8)</span>";
+                    return;
+                }
+                
                 const amount = parseInt(btn.dataset.quickRoom);
                 const res = await adminAdvancePayment(room, amount);
-                document.getElementById("advFeedback").innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
-                renderUI();
+                fb.innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
+                if (res.success) renderUI();
             }));
+            
             document.querySelector(".custom-room-adv")?.addEventListener("click", async () => {
                 const room = document.getElementById("advRoom")?.value;
-                if (!room || room < 1 || room > 8) return;
+                const fb = document.getElementById("advFeedback");
+                if (!fb) return;
+                
+                if (!room || room < 1 || room > 8) {
+                    fb.innerHTML = "<span style='color:red'>❌ Select valid room (1-8)</span>";
+                    return;
+                }
+                
                 const amount = prompt("Enter advance amount (₹):", "300");
                 if (amount) {
-                    const amtNum = parseInt(amount);
-                    if (amtNum > 0) {
-                        const res = await adminAdvancePayment(room, amtNum);
-                        document.getElementById("advFeedback").innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
-                        renderUI();
-                    }
+                    const res = await adminAdvancePayment(room, amount);
+                    fb.innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
+                    if (res.success) renderUI();
                 }
             });
+            
             document.getElementById("updateCostBtn")?.addEventListener("click", async () => {
-                const cost = parseInt(document.getElementById("newCost")?.value);
-                const res = await updateWaterUnitCost(cost);
+                const cost = document.getElementById("newCost")?.value;
                 const fb = document.createElement("div");
-                fb.innerHTML = res.success ? `<span style="color:green">${res.message}</span>` : `<span style="color:red">${res.message}</span>`;
                 document.getElementById("updateCostBtn")?.after(fb);
-                setTimeout(() => fb.remove(), 2000);
-                renderUI();
+                
+                const res = await updateWaterUnitCost(cost);
+                fb.innerHTML = res.success ? `<span style="color:green">${res.message}</span>` : `<span style="color:red">${res.message}</span>`;
+                setTimeout(() => fb.remove(), 3000);
+                if (res.success) renderUI();
             });
+            
             document.getElementById("resetAllDataBtn")?.addEventListener("click", async () => {
                 await resetAllData();
                 renderUI();
@@ -662,29 +837,48 @@
         document.getElementById("userLoginBtn").onclick = () => {
             const room = document.getElementById("userRoom").value;
             const pass = document.getElementById("userPass").value;
-            if (currentData.room_passwords[room] === pass) {
-                currentSession = { isAdmin: false, room: room.toString() };
+            const errorEl = document.getElementById("userError");
+            
+            // Validate inputs
+            if (!room || room < 1 || room > 8) {
+                showError(errorEl, "Please enter a valid room number (1-8)");
+                return;
+            }
+            if (!pass || pass.length < 4) {
+                showError(errorEl, "Password must be at least 4 characters");
+                return;
+            }
+            
+            const roomStr = room.toString();
+            if (currentData.room_passwords && currentData.room_passwords[roomStr] === pass) {
+                currentSession = { isAdmin: false, room: roomStr };
                 persistSession();
                 showDashboard();
             } else {
-                const err = document.getElementById("userError");
-                err.innerText = "Invalid room number or password";
-                err.style.display = "block";
-                setTimeout(() => err.style.display = "none", 2000);
+                showError(errorEl, "Invalid room number or password");
             }
         };
         document.getElementById("adminLoginBtn").onclick = () => {
             const user = document.getElementById("adminUser").value;
             const pass = document.getElementById("adminPass").value;
+            const errorEl = document.getElementById("adminError");
+            
+            // Validate inputs
+            if (!user || user.length < 1) {
+                showError(errorEl, "Please enter admin username");
+                return;
+            }
+            if (!pass || pass.length < 4) {
+                showError(errorEl, "Password must be at least 4 characters");
+                return;
+            }
+            
             if (user === currentData.admin_cred.username && pass === currentData.admin_cred.password) {
                 currentSession = { isAdmin: true, room: null };
                 persistSession();
                 showDashboard();
             } else {
-                const err = document.getElementById("adminError");
-                err.innerText = "Invalid admin credentials";
-                err.style.display = "block";
-                setTimeout(() => err.style.display = "none", 2000);
+                showError(errorEl, "Invalid admin credentials");
             }
         };
         document.getElementById("logoutBtn").onclick = () => {
