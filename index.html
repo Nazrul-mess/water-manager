@@ -2,60 +2,1137 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Under Maintenance</title>
-
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #0f172a;
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            text-align: center;
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Nazrul Mess Water Management</title>
+    <link rel="icon" type="image/png" href="logo.jpg">
+    <link rel="stylesheet" href="style.css">
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "firebase/app": "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js",
+                "firebase/firestore": "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js",
+                "firebase/analytics": "https://www.gstatic.com/firebasejs/12.13.0/firebase-analytics.js"
+            }
         }
+    </script>
 
-        .container {
-            max-width: 600px;
-            padding: 20px;
-        }
-
-        h1 {
-            font-size: 3rem;
-            margin-bottom: 10px;
-        }
-
-        p {
-            color: #cbd5e1;
-            line-height: 1.6;
-        }
-
-        .status {
-            display: inline-block;
-            margin-top: 20px;
-            padding: 10px 20px;
-            background: #f59e0b;
-            color: #000;
-            border-radius: 999px;
-            font-weight: bold;
-        }
-    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🚧 Under Maintenance</h1>
-
-        <p>
-            We are currently performing scheduled maintenance and improvements.
-            Please check back soon.
-        </p>
-
-        <div class="status">
-            Expected return: 22 June 2026, 11:59 pm
+<div class="app-container">
+    <div id="loadingIndicator" style="display:none;" class="loading-overlay"><div class="loading-content">⏳ Syncing...</div></div>
+    <div id="loginView" class="login-panel">
+        <div class="login-wrapper">
+            <div class="tab-buttons"><button class="tab-btn active" data-tab="user">🔑 Login as Member</button><button class="tab-btn" data-tab="admin">👑 Login as Admin</button></div>
+            <div id="userLoginForm" class="login-form">
+                <div class="input-group"><label>🏠 Room Number (1-8)</label><input type="number" id="userRoom" placeholder="e.g., 3" min="1" max="8" required></div>
+                <div class="input-group"><label>🔐 Room Password</label><input type="password" id="userPass" placeholder="Enter password" required minlength="6"></div>
+                <button class="btn-primary" id="userLoginBtn">Login as Member</button>
+                <div id="userError" class="error-msg" style="display:none;"></div>
+            </div>
+            <div id="adminLoginForm" class="login-form" style="display:none;">
+                <div class="input-group"><label>👤 Admin Username</label><input type="text" id="adminUser" placeholder="admin" required></div>
+                <div class="input-group"><label>🔒 Admin Password</label><input type="password" id="adminPass" placeholder="••••••" required minlength="6"></div>
+                <button class="btn-primary" id="adminLoginBtn">Admin Access</button>
+                <div id="adminError" class="error-msg" style="display:none;"></div>
+            </div>
         </div>
     </div>
+    <div id="dashboardView" class="dashboard-panel" style="display:none;">
+        <div class="dashboard-header">
+            <div class="dashboard-title"><h2>💧 Nazrul Mess Water <span id="dbStatus" class="db-status">🔄 Synced</span></h2></div>
+            <div class="user-badge" id="userRoleBadge">Room X</div>
+            <button class="logout-btn" id="logoutBtn">🚪 Logout</button>
+        </div>
+        <div class="dashboard-stats" id="statsGrid"></div>
+        <div class="water-action-area" id="actionArea"></div>
+        <div style="padding: 0 20px 20px 20px; background:#f4f9fe;">
+            <div class="action-card"><h3 id="roomDetailHeading">📊 Room Complete Data</h3><div id="roomDetailPanel"></div></div>
+            <div class="action-card" id="purchaseHistorySection" style="display:none;"><h3>📦 Water Purchase History</h3><div style="overflow-x:auto;"><table id="purchaseTable"><thead><tr><th>Date</th><th>Units Added</th><th>Total Cost (₹)</th><th>Added By</th></tr></thead><tbody id="purchaseTableBody"><tr><td colspan="4">Loading...</td></tr></tbody></table></div></div>
+            <div class="action-card"><h3>🚰 Room Water Usage Log</h3><div style="overflow-x:auto;"><table id="usageTable"><thead><tr><th>Room</th><th>Units Used</th><th>Date</th><th>Cost (₹)</th></tr></thead><tbody id="usageTableBody"><tr><td colspan="4">Loading...</td></tr></tbody></table></div></div>
+            <div id="qrSection"></div>
+        </div>
+    </div>
+</div>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-analytics.js";
+
+    // ==================== DATABASE CONFIGURATIONS ====================
+    const firebaseConfig = {
+        apiKey: "AIzaSyBXQfK7GsFhnoqQ-CCBALUpAt_mqrW3ynU",
+        authDomain: "waterdb-58644.firebaseapp.com",
+        projectId: "waterdb-58644",
+        storageBucket: "waterdb-58644.firebasestorage.app",
+        messagingSenderId: "189956996443",
+        appId: "1:189956996443:web:5b1d568f663283957cae7e",
+        measurementId: "G-QFEENT6L1X"
+    };
+    
+    const JSONBIN_API_KEY = "$2a$10$h1Q1cMJqAOVKAtOW5Zsn8uotclzKzcb5W/bOEos4jt2dcuoyDiUr.";
+    const JSONBIN_BIN_ID = "6a033820250b1311c33c838e";
+
+    // REPLACE WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
+    const GOOGLE_SHEET_WEBHOOK = "https://script.google.com/macros/s/AKfycbwf3pSmHcM-gPMkgmdoFMYe_0Qwa0F2MQg_eZuBKBjJMgjSwo1sUGLPtqVu4NsPMWzbrg/exec";
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getFirestore(app);
+    const MAIN_DOC_REF = doc(db, "waterManagement", "mainData");
+
+    // Default data structure
+    const DEFAULT_DATA = {
+        room_balances: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0 },
+        total_balance_pool: 0,
+        total_water_stored: 0,
+        monthly_water_usage: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0 },
+        detailed_usage_log: [],
+        water_purchase_log: [],
+        room_passwords: { "1": "room123", "2": "room123", "3": "room123", "4": "room123", "5": "room123", "6": "room123", "7": "room123", "8": "room123" },
+        admin_cred: { username: "admin", password: "admin123" },
+        water_unit_cost: 30,
+        advance_transactions: [],
+        transaction_log: [],
+        room_total_usage: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0 },
+        room_total_advances: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0 },
+        room_total_cost: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0 },
+        last_transaction_time: null,
+        system_start_date: new Date().toISOString()
+    };
+
+    let currentData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+    let currentSession = { isAdmin: false, room: null };
+    let adminSelectedRoom = 1;
+    let isSyncing = false;
+
+    // ==================== VALIDATION HELPERS ====================
+    function validateRoomNumber(room) {
+        const num = parseInt(room);
+        if (isNaN(num) || num < 1 || num > 8) {
+            return { valid: false, message: "Room number must be between 1 and 8" };
+        }
+        return { valid: true, value: num };
+    }
+
+    function validateAmount(amount) {
+        const num = parseFloat(amount);
+        if (isNaN(num) || num <= 0) {
+            return { valid: false, message: "Amount must be a positive number" };
+        }
+        if (num > 100000) {
+            return { valid: false, message: "Amount cannot exceed ₹100,000" };
+        }
+        return { valid: true, value: num };
+    }
+
+    function validateUnits(units) {
+        const num = parseFloat(units);
+        if (isNaN(num) || num <= 0) {
+            return { valid: false, message: "Units must be a positive number" };
+        }
+        if (num > 10000) {
+            return { valid: false, message: "Units cannot exceed 10,000" };
+        }
+        return { valid: true, value: num };
+    }
+
+    function sanitizeString(input) {
+        if (!input) return '';
+        return String(input).trim().slice(0, 100);
+    }
+
+    function showError(element, message) {
+        if (element) {
+            element.textContent = message;
+            element.style.display = 'block';
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 3000);
+        }
+    }
+
+    function showToast(message, type = "info") {
+        const toast = document.createElement("div");
+        toast.className = "auto-sync-toast";
+        toast.style.background = type === "success" ? "#2b7a3e" : "#1e3a5f";
+        toast.innerHTML = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    function updateDbStatus(status) {
+        const span = document.getElementById("dbStatus");
+        if(span) span.innerHTML = status;
+    }
+
+    function showLoading(show) { 
+        const el = document.getElementById("loadingIndicator");
+        if(el) el.style.display = show ? "flex" : "none";
+    }
+
+    function getTimestamp() { return new Date().toISOString(); }
+    function getDateStr() { return new Date().toISOString().slice(0,10); }
+    function formatCurrency(amount) { 
+        if (amount === undefined || amount === null || isNaN(amount)) return '₹0.00';
+        return '₹' + Math.round(amount * 100) / 100; 
+    }
+
+    // ==================== GOOGLE SHEET (passbook) - FIXED VERSION ====================
+    async function pushToGoogleSheet(entry) {
+        try {
+            // Determine sheet name
+            let sheetName = "Master_Summary";
+            if (entry.room === "ADMIN") {
+                sheetName = "Admin_Actions";
+            } else if (entry.room && entry.room >= 1 && entry.room <= 8) {
+                sheetName = `Room_${entry.room}`;
+            }
+            
+            // Clean the entry - ensure all values are valid
+            const payload = {
+                sheetName: sheetName,
+                id: entry.id || Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+                timestamp: entry.timestamp || getTimestamp(),
+                date: entry.date || getDateStr(),
+                time: entry.time || new Date().toLocaleTimeString(),
+                room: entry.room || "ADMIN",
+                type: entry.type || "transaction",
+                units: typeof entry.units === 'number' ? Math.round(entry.units * 100) / 100 : 0,
+                amount: typeof entry.amount === 'number' ? Math.round(entry.amount * 100) / 100 : 0,
+                balance: typeof entry.balance === 'number' ? Math.round(entry.balance * 100) / 100 : 0,
+                note: entry.note || "",
+                unit_cost: typeof entry.unit_cost === 'number' ? Math.round(entry.unit_cost * 100) / 100 : 0,
+                old_balance: typeof entry.old_balance === 'number' ? Math.round(entry.old_balance * 100) / 100 : 0,
+                old_storage: typeof entry.old_storage === 'number' ? Math.round(entry.old_storage * 100) / 100 : 0,
+                water_remaining: typeof entry.water_remaining === 'number' ? Math.round(entry.water_remaining * 100) / 100 : 0,
+                pool_after: typeof entry.pool_after === 'number' ? Math.round(entry.pool_after * 100) / 100 : 0,
+                old_cost: typeof entry.old_cost === 'number' ? Math.round(entry.old_cost * 100) / 100 : 0,
+                new_cost: typeof entry.new_cost === 'number' ? Math.round(entry.new_cost * 100) / 100 : 0
+            };
+            
+            // Remove any undefined values
+            const finalPayload = {};
+            for (const [key, value] of Object.entries(payload)) {
+                if (value !== undefined && value !== null && !(typeof value === 'number' && isNaN(value))) {
+                    finalPayload[key] = value;
+                }
+            }
+            
+            console.log("📤 Sending to Google Sheet:", finalPayload);
+            console.log("📤 URL:", GOOGLE_SHEET_WEBHOOK);
+            
+            // Try with no-cors mode first (more permissive)
+            try {
+                const response = await fetch(GOOGLE_SHEET_WEBHOOK, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { 
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(finalPayload)
+                });
+                
+                // With no-cors, we can't read the response, but if it doesn't throw, it worked
+                console.log("✅ Request sent successfully (no-cors mode)");
+                showToast("📊 Transaction saved to Google Sheet", "success");
+                return true;
+                
+            } catch (noCorsError) {
+                console.warn("No-cors failed, trying cors mode...", noCorsError);
+                
+                // Try with cors mode as fallback
+                try {
+                    const response = await fetch(GOOGLE_SHEET_WEBHOOK, {
+                        method: "POST",
+                        mode: "cors",
+                        headers: { 
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(finalPayload)
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log("✅ Google Sheet response:", result);
+                        if (result.success) {
+                            console.log(`✅ Logged to ${sheetName}`);
+                            showToast("📊 Transaction saved to Google Sheet", "success");
+                            return true;
+                        } else {
+                            console.warn("⚠️ Google Sheet error:", result.error);
+                            showToast("⚠️ Could not save to Google Sheet", "error");
+                            return false;
+                        }
+                    } else {
+                        console.error("❌ Google Sheet HTTP error:", response.status);
+                        showToast("⚠️ Could not save to Google Sheet", "error");
+                        return false;
+                    }
+                } catch (corsError) {
+                    console.error("❌ Both modes failed:", corsError);
+                    showToast("⚠️ Could not save to Google Sheet", "error");
+                    return false;
+                }
+            }
+            
+        } catch (e) {
+            console.error("Google Sheet push error:", e);
+            showToast("⚠️ Could not save to Google Sheet", "error");
+            return false;
+        }
+    }
+
+    // ==================== JSONBin Operations ====================
+    async function readFromJSONBin() {
+        try {
+            const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+                headers: { "X-Master-Key": JSONBIN_API_KEY }
+            });
+            if(response.ok) {
+                const json = await response.json();
+                if(json.record && Object.keys(json.record).length > 2) {
+                    return { success: true, data: json.record };
+                }
+            }
+            return { success: false, data: null };
+        } catch(e) {
+            console.warn("JSONBin read error:", e.message);
+            return { success: false, data: null, error: e };
+        }
+    }
+
+    async function writeToJSONBin(data) {
+        try {
+            await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", "X-Master-Key": JSONBIN_API_KEY },
+                body: JSON.stringify(data)
+            });
+            return true;
+        } catch(e) {
+            console.warn("JSONBin write error:", e.message);
+            return false;
+        }
+    }
+
+    // ==================== Firestore Operations ====================
+    async function readFromFirestore() {
+        try {
+            const docSnap = await getDoc(MAIN_DOC_REF);
+            if(docSnap.exists()) {
+                const data = docSnap.data();
+                if(data && Object.keys(data).length > 2) {
+                    return { success: true, data: data };
+                }
+            }
+            return { success: false, data: null };
+        } catch(e) {
+            console.warn("Firestore read error:", e.message);
+            return { success: false, data: null, error: e };
+        }
+    }
+
+    async function writeToFirestore(data) {
+        try {
+            await setDoc(MAIN_DOC_REF, { ...data, lastUpdated: new Date().toISOString(), timestamp: Date.now() }, { merge: true });
+            return true;
+        } catch(e) {
+            console.warn("Firestore write error:", e.message);
+            return false;
+        }
+    }
+
+    // ==================== SMART AUTO-RECOVERY ====================
+    function compareDataAndGetLatest(source1, source2, source1Name, source2Name) {
+        if (!source1 && !source2) return null;
+        if (!source1) return { data: source2, source: source2Name };
+        if (!source2) return { data: source1, source: source1Name };
+        
+        let score1 = 0, score2 = 0;
+        
+        if (source1.total_water_stored !== undefined) score1 += source1.total_water_stored / 100;
+        if (source2.total_water_stored !== undefined) score2 += source2.total_water_stored / 100;
+        
+        if (source1.total_balance_pool !== undefined) score1 += source1.total_balance_pool / 1000;
+        if (source2.total_balance_pool !== undefined) score2 += source2.total_balance_pool / 1000;
+        
+        if (source1.detailed_usage_log) score1 += source1.detailed_usage_log.length;
+        if (source2.detailed_usage_log) score2 += source2.detailed_usage_log.length;
+        
+        if (source1.water_purchase_log) score1 += source1.water_purchase_log.length;
+        if (source2.water_purchase_log) score2 += source2.water_purchase_log.length;
+        
+        if (source1.advance_transactions) score1 += source1.advance_transactions.length;
+        if (source2.advance_transactions) score2 += source2.advance_transactions.length;
+        
+        if (source1.transaction_log) score1 += source1.transaction_log.length;
+        if (source2.transaction_log) score2 += source2.transaction_log.length;
+        
+        if (source1.lastUpdatedTimestamp && source2.lastUpdatedTimestamp) {
+            if (source1.lastUpdatedTimestamp > source2.lastUpdatedTimestamp) score1 += 10;
+            else score2 += 10;
+        }
+        
+        if (score1 >= score2) {
+            return { data: source1, source: source1Name, score: score1 };
+        } else {
+            return { data: source2, source: source2Name, score: score2 };
+        }
+    }
+
+    async function autoSyncDatabases(forceSync = false) {
+        if (isSyncing) return;
+        isSyncing = true;
+        
+        updateDbStatus("🔄 Syncing...");
+        
+        try {
+            const firestoreResult = await readFromFirestore();
+            const jsonbinResult = await readFromJSONBin();
+            
+            const firestoreData = firestoreResult.success ? firestoreResult.data : null;
+            const jsonbinData = jsonbinResult.success ? jsonbinResult.data : null;
+            
+            const latest = compareDataAndGetLatest(firestoreData, jsonbinData, "Firestore", "JSONBin");
+            
+            if (latest) {
+                const currentDataHash = JSON.stringify(currentData);
+                const latestDataHash = JSON.stringify(latest.data);
+                
+                if (currentDataHash !== latestDataHash && latest.data) {
+                    const recoveredData = { ...DEFAULT_DATA, ...latest.data };
+                    if (!recoveredData.transaction_log) recoveredData.transaction_log = [];
+                    if (!recoveredData.water_purchase_log) recoveredData.water_purchase_log = [];
+                    if (!recoveredData.detailed_usage_log) recoveredData.detailed_usage_log = [];
+                    if (!recoveredData.monthly_water_usage) recoveredData.monthly_water_usage = { "1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0 };
+                    if (!recoveredData.room_balances) recoveredData.room_balances = { "1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0 };
+                    if (!recoveredData.room_passwords) recoveredData.room_passwords = { "1":"room123","2":"room123","3":"room123","4":"room123","5":"room123","6":"room123","7":"room123","8":"room123" };
+                    if (!recoveredData.room_total_usage) recoveredData.room_total_usage = { "1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0 };
+                    if (!recoveredData.room_total_advances) recoveredData.room_total_advances = { "1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0 };
+                    if (!recoveredData.room_total_cost) recoveredData.room_total_cost = { "1":0,"2":0,"3":0,"4":0,"5":0,"6":0,"7":0,"8":0 };
+                    if (recoveredData.water_unit_cost === undefined) recoveredData.water_unit_cost = 30;
+                    if (recoveredData.total_balance_pool === undefined) recoveredData.total_balance_pool = 0;
+                    if (!recoveredData.system_start_date) recoveredData.system_start_date = new Date().toISOString();
+                    
+                    currentData = recoveredData;
+                    localStorage.setItem("nazrul_water_backup", JSON.stringify(currentData));
+                    
+                    if (latest.source === "JSONBin" && firestoreData) {
+                        showToast(`🔄 Auto-restored from JSONBin backup`, "success");
+                    } else if (latest.source === "Firestore" && jsonbinData) {
+                        showToast(`🔄 Auto-synced Firestore data to backup`, "success");
+                    }
+                }
+                
+                let syncedAny = false;
+                
+                if (!firestoreData || forceSync || JSON.stringify(firestoreData) !== JSON.stringify(latest.data)) {
+                    const writeOk = await writeToFirestore(latest.data);
+                    if (writeOk) syncedAny = true;
+                }
+                
+                if (!jsonbinData || forceSync || JSON.stringify(jsonbinData) !== JSON.stringify(latest.data)) {
+                    const writeOk = await writeToJSONBin(latest.data);
+                    if (writeOk) syncedAny = true;
+                }
+                
+                if (syncedAny) {
+                    updateDbStatus("✅ DB Synced");
+                } else {
+                    updateDbStatus("✅ Synced");
+                }
+            } else {
+                currentData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+                await writeToFirestore(currentData);
+                await writeToJSONBin(currentData);
+                localStorage.setItem("nazrul_water_backup", JSON.stringify(currentData));
+                updateDbStatus("✅ Initialized");
+                showToast("🆕 New system initialized in both databases", "success");
+            }
+        } catch (error) {
+            console.error("Auto-sync error:", error);
+            updateDbStatus("⚠️ Sync Error");
+            showToast("⚠️ Database sync error - using local data", "error");
+            
+            const localBackup = localStorage.getItem("nazrul_water_backup");
+            if (localBackup) {
+                try {
+                    const parsed = JSON.parse(localBackup);
+                    if (parsed && Object.keys(parsed).length > 2) {
+                        currentData = { ...DEFAULT_DATA, ...parsed };
+                        showToast("🔄 Recovered from local backup", "success");
+                    }
+                } catch (e) {
+                    console.error("Local backup recovery error:", e);
+                }
+            }
+        }
+        
+        isSyncing = false;
+        return true;
+    }
+
+    // ==================== TRANSACTION LOG ====================
+    function addTransactionLog(entry) {
+        const logEntry = {
+            id: Date.now() + Math.random().toString(36).substr(2, 8),
+            timestamp: getTimestamp(),
+            date: getDateStr(),
+            time: new Date().toLocaleTimeString(),
+            ...entry,
+            balance_after: entry.balance !== undefined && entry.balance !== null ? Math.round(entry.balance * 100) / 100 : null
+        };
+        if (!currentData.transaction_log) currentData.transaction_log = [];
+        currentData.transaction_log.unshift(logEntry);
+        return logEntry;
+    }
+
+    async function syncAfterModification(entryForSheet = null) {
+        if (isSyncing) return;
+        isSyncing = true;
+        
+        updateDbStatus("🔄 Syncing changes...");
+        
+        try {
+            const firestoreOk = await writeToFirestore(currentData);
+            const jsonbinOk = await writeToJSONBin(currentData);
+            
+            if (firestoreOk && jsonbinOk) {
+                updateDbStatus("✅ Synced");
+            } else if (firestoreOk) {
+                updateDbStatus("⚠️ Firestore OK, JSONBin offline");
+            } else if (jsonbinOk) {
+                updateDbStatus("⚠️ JSONBin OK, Firestore offline");
+            } else {
+                updateDbStatus("⚠️ Both offline - using local");
+            }
+            
+            localStorage.setItem("nazrul_water_backup", JSON.stringify(currentData));
+            
+            if (entryForSheet) {
+                await pushToGoogleSheet(entryForSheet);
+            }
+        } catch (error) {
+            console.error("Sync error:", error);
+            updateDbStatus("⚠️ Sync Failed");
+        }
+        
+        isSyncing = false;
+        renderUI();
+    }
+
+    async function initializeData() {
+        showLoading(true);
+        await autoSyncDatabases(true);
+        showLoading(false);
+    }
+
+    // ==================== BUSINESS LOGIC ====================
+    const getUnitCost = () => currentData.water_unit_cost || 30;
+    
+    function addAdvanceTransaction(room, amount) {
+        const validRoom = validateRoomNumber(room);
+        if (!validRoom.valid) return false;
+        
+        currentData.advance_transactions.unshift({ 
+            room: validRoom.value.toString(), 
+            amount: Math.round(amount * 100) / 100,
+            date: new Date().toISOString().slice(0,10), 
+            timestamp: Date.now() 
+        });
+        if (currentData.advance_transactions.length > 50) currentData.advance_transactions.pop();
+        return true;
+    }
+    
+    async function adminAddWaterStorage(units, addedBy = "Admin") {
+        const validUnits = validateUnits(units);
+        if (!validUnits.valid) {
+            return { success: false, message: validUnits.message };
+        }
+        
+        const waterCost = validUnits.value * getUnitCost();
+        if (waterCost > currentData.total_balance_pool) {
+            return { success: false, message: `Insufficient Total Balance (${formatCurrency(currentData.total_balance_pool)}) to purchase ${validUnits.value} units. Need ${formatCurrency(waterCost)}.` };
+        }
+        
+        const oldPool = currentData.total_balance_pool;
+        const oldStorage = currentData.total_water_stored;
+        
+        currentData.total_balance_pool -= waterCost;
+        currentData.total_water_stored += validUnits.value;
+        currentData.last_transaction_time = getTimestamp();
+        
+        currentData.water_purchase_log.unshift({ 
+            date: new Date().toISOString().slice(0,10), 
+            units: validUnits.value, 
+            cost: Math.round(waterCost * 100) / 100, 
+            added_by: sanitizeString(addedBy), 
+            timestamp: Date.now(),
+            balance_after: currentData.total_balance_pool
+        });
+        currentData.detailed_usage_log.unshift({ 
+            room: "ADMIN_PURCHASE", 
+            units: validUnits.value, 
+            date: new Date().toISOString().slice(0,10), 
+            cost: Math.round(waterCost * 100) / 100 
+        });
+        if (currentData.water_purchase_log.length > 50) currentData.water_purchase_log.pop();
+        if (currentData.detailed_usage_log.length > 50) currentData.detailed_usage_log.pop();
+        
+        addTransactionLog({
+            room: "ADMIN",
+            type: "purchase",
+            units: validUnits.value,
+            amount: Math.round(waterCost * 100) / 100,
+            balance: currentData.total_balance_pool,
+            note: `Added ${validUnits.value} units water. Cost ${formatCurrency(waterCost)}`,
+            old_balance: oldPool,
+            old_storage: oldStorage,
+            water_remaining: currentData.total_water_stored,
+            unit_cost: getUnitCost()
+        });
+        
+        const entry = { 
+            room: "ADMIN", 
+            type: "water_purchase", 
+            units: validUnits.value, 
+            amount: Math.round(waterCost * 100) / 100, 
+            balance: currentData.total_balance_pool, 
+            note: `Added ${validUnits.value} units, cost ${formatCurrency(waterCost)}`,
+            unit_cost: getUnitCost(),
+            old_balance: oldPool,
+            old_storage: oldStorage,
+            water_remaining: currentData.total_water_stored
+        };
+        await syncAfterModification(entry);
+        return { success: true, message: `✅ Added ${validUnits.value} units water. ${formatCurrency(Math.round(waterCost * 100) / 100)} deducted. Storage: ${currentData.total_water_stored} units.` };
+    }
+    
+    async function roomConsumeWater(room, units) {
+        const validRoom = validateRoomNumber(room);
+        if (!validRoom.valid) {
+            return { success: false, message: validRoom.message };
+        }
+        
+        const validUnits = validateUnits(units);
+        if (!validUnits.valid) {
+            return { success: false, message: validUnits.message };
+        }
+        
+        const roomStr = validRoom.value.toString();
+        let roomBalance = currentData.room_balances[roomStr] || 0;
+        let requiredCost = validUnits.value * getUnitCost();
+        let roundedCost = Math.round(requiredCost * 100) / 100;
+        
+        if (roundedCost > roomBalance) {
+            return { success: false, message: `Insufficient room balance! Need ${formatCurrency(roundedCost)}, available ${formatCurrency(Math.round(roomBalance * 100) / 100)}` };
+        }
+        if (validUnits.value > currentData.total_water_stored) {
+            return { success: false, message: `Not enough water. Available: ${currentData.total_water_stored} units` };
+        }
+        
+        const oldBal = roomBalance;
+        const oldStorage = currentData.total_water_stored;
+        
+        currentData.room_balances[roomStr] = Math.round((roomBalance - roundedCost) * 100) / 100;
+        currentData.total_water_stored = Math.round((currentData.total_water_stored - validUnits.value) * 100) / 100;
+        currentData.monthly_water_usage[roomStr] = Math.round(((currentData.monthly_water_usage[roomStr] || 0) + validUnits.value) * 100) / 100;
+        currentData.room_total_usage[roomStr] = Math.round(((currentData.room_total_usage[roomStr] || 0) + validUnits.value) * 100) / 100;
+        currentData.room_total_cost[roomStr] = Math.round(((currentData.room_total_cost[roomStr] || 0) + roundedCost) * 100) / 100;
+        currentData.last_transaction_time = getTimestamp();
+        
+        currentData.detailed_usage_log.unshift({ 
+            room: roomStr, 
+            units: validUnits.value, 
+            date: new Date().toISOString().slice(0,10), 
+            cost: roundedCost 
+        });
+        if (currentData.detailed_usage_log.length > 50) currentData.detailed_usage_log.pop();
+        
+        addTransactionLog({
+            room: roomStr,
+            type: "consumption",
+            units: validUnits.value,
+            amount: roundedCost,
+            balance: currentData.room_balances[roomStr],
+            note: `Room ${roomStr} used ${validUnits.value} units, cost ${formatCurrency(roundedCost)}`,
+            old_balance: oldBal,
+            old_storage: oldStorage,
+            water_remaining: currentData.total_water_stored,
+            unit_cost: getUnitCost()
+        });
+        
+        const entry = { 
+            room: roomStr, 
+            type: "consumption", 
+            units: validUnits.value, 
+            amount: roundedCost, 
+            balance: currentData.room_balances[roomStr], 
+            note: `Room ${roomStr} used ${validUnits.value} units`,
+            unit_cost: getUnitCost(),
+            old_balance: oldBal,
+            old_storage: oldStorage,
+            water_remaining: currentData.total_water_stored
+        };
+        await syncAfterModification(entry);
+        return { success: true, message: `Consumed ${validUnits.value} units. Cost ${formatCurrency(roundedCost)}. New balance: ${formatCurrency(currentData.room_balances[roomStr])}` };
+    }
+    
+    async function adminAdvancePayment(room, amount) {
+        const validRoom = validateRoomNumber(room);
+        if (!validRoom.valid) {
+            return { success: false, message: validRoom.message };
+        }
+        
+        const validAmount = validateAmount(amount);
+        if (!validAmount.valid) {
+            return { success: false, message: validAmount.message };
+        }
+        
+        const roomStr = validRoom.value.toString();
+        const oldBal = currentData.room_balances[roomStr] || 0;
+        
+        currentData.room_balances[roomStr] = Math.round(((currentData.room_balances[roomStr] || 0) + validAmount.value) * 100) / 100;
+        currentData.total_balance_pool = Math.round((currentData.total_balance_pool + validAmount.value) * 100) / 100;
+        currentData.room_total_advances[roomStr] = Math.round(((currentData.room_total_advances[roomStr] || 0) + validAmount.value) * 100) / 100;
+        currentData.last_transaction_time = getTimestamp();
+        
+        addAdvanceTransaction(roomStr, validAmount.value);
+        
+        addTransactionLog({
+            room: roomStr,
+            type: "advance",
+            units: 0,
+            amount: validAmount.value,
+            balance: currentData.room_balances[roomStr],
+            note: `Advance payment ${formatCurrency(validAmount.value)} to Room ${roomStr}`,
+            old_balance: oldBal,
+            pool_after: currentData.total_balance_pool,
+            unit_cost: getUnitCost()
+        });
+        
+        const entry = { 
+            room: roomStr, 
+            type: "advance", 
+            units: 0, 
+            amount: validAmount.value, 
+            balance: currentData.room_balances[roomStr], 
+            note: `Advance ${formatCurrency(validAmount.value)}`,
+            unit_cost: getUnitCost(),
+            old_balance: oldBal,
+            pool_after: currentData.total_balance_pool
+        };
+        await syncAfterModification(entry);
+        return { success: true, message: `${formatCurrency(validAmount.value)} added to Room ${validRoom.value}. Room balance: ${formatCurrency(currentData.room_balances[roomStr])}` };
+    }
+    
+    async function updateWaterUnitCost(cost) {
+        const validCost = validateAmount(cost);
+        if (!validCost.valid) {
+            return { success: false, message: validCost.message };
+        }
+        
+        if (validCost.value < 1) {
+            return { success: false, message: "Cost must be at least ₹1" };
+        }
+        if (validCost.value > 1000) {
+            return { success: false, message: "Cost cannot exceed ₹1000 per unit" };
+        }
+        
+        const oldCost = currentData.water_unit_cost;
+        currentData.water_unit_cost = Math.round(validCost.value * 100) / 100;
+        
+        addTransactionLog({
+            room: "ADMIN",
+            type: "setting",
+            units: 0,
+            amount: validCost.value,
+            balance: 0,
+            note: `Unit cost changed from ${formatCurrency(oldCost)} to ${formatCurrency(currentData.water_unit_cost)}`,
+            old_cost: oldCost,
+            new_cost: currentData.water_unit_cost,
+            unit_cost: currentData.water_unit_cost
+        });
+        
+        await syncAfterModification({ 
+            room: "ADMIN", 
+            type: "setting", 
+            units: 0, 
+            amount: validCost.value, 
+            balance: 0, 
+            note: `Unit cost updated to ${formatCurrency(currentData.water_unit_cost)}`,
+            old_cost: oldCost,
+            new_cost: currentData.water_unit_cost,
+            unit_cost: currentData.water_unit_cost
+        });
+        return { success: true, message: `Unit cost updated to ${formatCurrency(currentData.water_unit_cost)}` };
+    }
+    
+    async function resetAllData() {
+        if (confirm("⚠️ WARNING: This will reset ALL water data to default. Are you sure?")) {
+            addTransactionLog({
+                room: "ADMIN",
+                type: "reset",
+                units: 0,
+                amount: 0,
+                balance: 0,
+                note: "ADMIN RESET - All data cleared",
+                reset_time: getTimestamp()
+            });
+            
+            const resetLog = currentData.transaction_log;
+            currentData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+            currentData.transaction_log = resetLog;
+            currentData.system_start_date = getTimestamp();
+            
+            addTransactionLog({
+                room: "ADMIN",
+                type: "reset",
+                units: 0,
+                amount: 0,
+                balance: 0,
+                note: "System reset complete - Fresh start",
+                reset_time: getTimestamp()
+            });
+            
+            await syncAfterModification({ 
+                room: "ADMIN", 
+                type: "reset", 
+                units: 0, 
+                amount: 0, 
+                balance: 0, 
+                note: "System reset by admin",
+                reset_time: getTimestamp()
+            });
+            renderUI();
+            showToast("🗑️ All data has been reset. Passbook retains reset record.", "warning");
+            return true;
+        }
+        return false;
+    }
+
+    // ==================== UI RENDERING ====================
+    function renderPurchaseTable() {
+        const tbody = document.getElementById("purchaseTableBody");
+        if (!tbody) return;
+        let purchases = currentData.water_purchase_log || [];
+        if (!purchases.length) {
+            tbody.innerHTML = "<tr><td colspan='4'>No water purchase records</td></tr>";
+            return;
+        }
+        tbody.innerHTML = purchases.slice(0, 20).map(p => 
+            `<tr><td>${p.date || 'N/A'}</td><td>${p.units || 0} units</td><td>${formatCurrency(p.cost || 0)}</td><td>${p.added_by || "Admin"}</td></tr>`
+        ).join('');
+    }
+    
+    function renderUsageTable() {
+        const tbody = document.getElementById("usageTableBody");
+        if (!tbody) return;
+        let logs = (currentData.detailed_usage_log || []).slice(0, 20).filter(l => l.room !== "ADMIN_PURCHASE");
+        if (!currentSession.isAdmin && currentSession.room) {
+            logs = logs.filter(l => l.room === currentSession.room);
+        }
+        if (!logs.length) {
+            tbody.innerHTML = "<tr><td colspan='4'>No consumption records</td></tr>";
+            return;
+        }
+        tbody.innerHTML = logs.map(l => 
+            `<tr><td>Room ${l.room}</td><td>${l.units || 0} units</td><td>${l.date || 'N/A'}</td><td>${formatCurrency(l.cost || 0)}</td></tr>`
+        ).join('');
+    }
+    
+    function renderRoomDetail(roomNum) {
+        const panel = document.getElementById("roomDetailPanel");
+        if (!panel) return;
+        const r = roomNum.toString();
+        const balance = currentData.room_balances[r] || 0;
+        const monthly = currentData.monthly_water_usage[r] || 0;
+        const totalUsage = currentData.room_total_usage[r] || 0;
+        const totalCost = currentData.room_total_cost[r] || 0;
+        const totalAdv = currentData.room_total_advances[r] || 0;
+        const roomAdvances = (currentData.advance_transactions || []).filter(t => t.room === r);
+        
+        let html = `<div class="room-data-card">
+            <h4>🏠 Room ${roomNum} - Complete Details</h4>
+            <p><strong>💰 Current Balance:</strong> ${formatCurrency(balance)}</p>
+            <p><strong>📊 This Month's Usage:</strong> ${Math.round(monthly * 100) / 100} units (${formatCurrency(monthly * getUnitCost())})</p>
+            <p><strong>📊 Lifetime Usage:</strong> ${Math.round(totalUsage * 100) / 100} units (${formatCurrency(totalCost)})</p>
+            <p><strong>💳 Total Advances:</strong> ${formatCurrency(totalAdv)}</p>
+            <p><strong>💵 Cost Per Unit:</strong> ${formatCurrency(getUnitCost())}</p>
+            <h5>📜 Advance Payment History</h5>`;
+        if (roomAdvances.length) {
+            html += `<table><thead><tr><th>Date</th><th>Amount (₹)</th></tr></thead><tbody>`;
+            roomAdvances.slice(0, 10).forEach(t => { html += `<tr><td>${t.date || 'N/A'}</td><td>${formatCurrency(t.amount || 0)}</td></tr>`; });
+            html += `</tbody></table>`;
+        } else {
+            html += `<p>No advance payments recorded.</p>`;
+        }
+        html += `</div>`;
+        panel.innerHTML = html;
+    }
+    
+    async function renderUI() {
+        const isAdmin = currentSession.isAdmin;
+        const roomId = currentSession.room;
+        const statsDiv = document.getElementById("statsGrid");
+        const actionDiv = document.getElementById("actionArea");
+        if (!statsDiv || !actionDiv) return;
+        
+        let statsHtml = `<div class="stat-card"><h3>💧 Water Storage</h3><div class="stat-value">${Math.round(currentData.total_water_stored * 100) / 100} units</div></div>`;
+        if (isAdmin) {
+            statsHtml += `<div class="stat-card"><h3>💰 Total Balance</h3><div class="stat-value">${formatCurrency(currentData.total_balance_pool)}</div></div>
+                         <div class="stat-card"><h3>💵 Cost/Unit</h3><div class="stat-value">${formatCurrency(getUnitCost())}</div></div>`;
+        } else if (roomId) {
+            const myBal = currentData.room_balances[roomId] || 0;
+            statsHtml += `<div class="stat-card"><h3>🏠 Your Balance</h3><div class="stat-value" style="color:${myBal < 60 ? '#bc392e' : '#1e3a5f'}">${formatCurrency(myBal)}</div></div>
+                         <div class="stat-card"><h3>📊 Your Monthly Usage</h3><div class="stat-value">${Math.round((currentData.monthly_water_usage[roomId] || 0) * 100) / 100} units</div></div>`;
+        }
+        statsDiv.innerHTML = statsHtml;
+        
+        if (!isAdmin && roomId) {
+            actionDiv.innerHTML = `<div class="action-card"><h3>🚰 Consume Water (Room ${roomId})</h3>
+                <div class="form-inline"><div class="input-group"><label>Units (1 unit = ${formatCurrency(getUnitCost())})</label>
+                <input type="number" id="userUnits" min="0.1" step="0.1" placeholder="Units" required></div>
+                <button class="btn-primary" id="useWaterBtn">💧 Use Water</button></div>
+                <div id="userActionFeedback"></div>
+                <div style="margin-top:8px; font-size:0.8rem; color:#6b8aa8;">
+                    Available water: ${Math.round(currentData.total_water_stored*100)/100} units | 
+                    Your balance: ${formatCurrency(currentData.room_balances[roomId]||0)}
+                </div>
+            </div>`;
+            document.getElementById("useWaterBtn")?.addEventListener("click", async () => {
+                const units = document.getElementById("userUnits")?.value;
+                const fb = document.getElementById("userActionFeedback");
+                if (!fb) return;
+                
+                const validUnits = validateUnits(units);
+                if (!validUnits.valid) {
+                    fb.innerHTML = `<span style="color:red">❌ ${validUnits.message}</span>`;
+                    return;
+                }
+                
+                const res = await roomConsumeWater(roomId, validUnits.value);
+                fb.innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
+                if (res.success) renderUI();
+            });
+        } else if (isAdmin) {
+            actionDiv.innerHTML = `<div class="action-card"><h3>🌊 Add Water to Storage</h3>
+                <div class="form-inline"><div class="input-group"><label>Units to Add</label><input type="number" id="addWaterUnits" min="0.1" step="0.1" required></div>
+                <button class="btn-primary btn-success" id="adminAddWaterBtn">➕ Add Water</button></div>
+                <div id="adminWaterFeedback"></div>
+                <div style="margin-top:8px; font-size:0.8rem; color:#6b8aa8;">
+                    Pool balance: ${formatCurrency(currentData.total_balance_pool)} | 
+                    Storage: ${Math.round(currentData.total_water_stored*100)/100} units
+                </div>
+            </div>
+                <div class="action-card"><h3>💰 Quick Advance</h3>
+                <div class="form-inline"><div class="input-group"><label>Room Number (1-8)</label><input type="number" id="advRoom" min="1" max="8" placeholder="Room" required></div>
+                <div class="quick-advance-grid">
+                    <button class="quick-advance-btn" data-quick-room="50">₹50</button>
+                    <button class="quick-advance-btn" data-quick-room="100">₹100</button>
+                    <button class="quick-advance-btn" data-quick-room="200">₹200</button>
+                    <button class="quick-advance-btn" data-quick-room="500">₹500</button>
+                    <button class="quick-advance-btn" data-quick-room="1000">₹1000</button>
+                    <button class="quick-advance-btn custom-room-adv">✏️ Custom</button>
+                </div>
+                <div id="advFeedback"></div></div></div>
+                <div class="action-card"><h3>⚙️ System Settings</h3>
+                <div class="form-inline"><div class="input-group"><label>Unit Cost (₹)</label><input type="number" id="newCost" min="1" step="0.5" value="${getUnitCost()}" required></div>
+                <button class="btn-primary btn-warning" id="updateCostBtn">Update Cost</button></div></div>
+                <div class="action-card">
+                    <button class="btn-primary btn-danger" id="resetAllDataBtn">🗑️ RESET ALL DATA</button>
+                    <span style="margin-left:12px; font-size:0.8rem; color:#6b8aa8;">System started: ${currentData.system_start_date ? new Date(currentData.system_start_date).toLocaleDateString() : 'N/A'}</span>
+                </div>`;
+            
+            document.getElementById("adminAddWaterBtn")?.addEventListener("click", async () => {
+                const units = document.getElementById("addWaterUnits")?.value;
+                const fb = document.getElementById("adminWaterFeedback");
+                if (!fb) return;
+                
+                const validUnits = validateUnits(units);
+                if (!validUnits.valid) {
+                    fb.innerHTML = `<span style="color:red">❌ ${validUnits.message}</span>`;
+                    return;
+                }
+                
+                const res = await adminAddWaterStorage(validUnits.value, "Admin");
+                fb.innerHTML = res.success ? `<span style="color:green">${res.message}</span>` : `<span style="color:red">${res.message}</span>`;
+                if (res.success) renderUI();
+            });
+            
+            document.querySelectorAll("[data-quick-room]").forEach(btn => btn.addEventListener("click", async () => {
+                const room = document.getElementById("advRoom")?.value;
+                const fb = document.getElementById("advFeedback");
+                if (!fb) return;
+                
+                if (!room || room < 1 || room > 8) {
+                    fb.innerHTML = "<span style='color:red'>❌ Select valid room (1-8)</span>";
+                    return;
+                }
+                
+                const amount = parseInt(btn.dataset.quickRoom);
+                const res = await adminAdvancePayment(room, amount);
+                fb.innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
+                if (res.success) renderUI();
+            }));
+            
+            document.querySelector(".custom-room-adv")?.addEventListener("click", async () => {
+                const room = document.getElementById("advRoom")?.value;
+                const fb = document.getElementById("advFeedback");
+                if (!fb) return;
+                
+                if (!room || room < 1 || room > 8) {
+                    fb.innerHTML = "<span style='color:red'>❌ Select valid room (1-8)</span>";
+                    return;
+                }
+                
+                const amount = prompt("Enter advance amount (₹):", "300");
+                if (amount) {
+                    const res = await adminAdvancePayment(room, amount);
+                    fb.innerHTML = res.success ? `<span style="color:green">✅ ${res.message}</span>` : `<span style="color:red">❌ ${res.message}</span>`;
+                    if (res.success) renderUI();
+                }
+            });
+            
+            document.getElementById("updateCostBtn")?.addEventListener("click", async () => {
+                const cost = document.getElementById("newCost")?.value;
+                const fb = document.createElement("div");
+                document.getElementById("updateCostBtn")?.after(fb);
+                
+                const res = await updateWaterUnitCost(cost);
+                fb.innerHTML = res.success ? `<span style="color:green">${res.message}</span>` : `<span style="color:red">${res.message}</span>`;
+                setTimeout(() => fb.remove(), 3000);
+                if (res.success) renderUI();
+            });
+            
+            document.getElementById("resetAllDataBtn")?.addEventListener("click", async () => {
+                await resetAllData();
+                renderUI();
+            });
+        }
+        
+        const heading = document.getElementById("roomDetailHeading");
+        if (!isAdmin && roomId) {
+            heading.innerText = `📊 Your Room (${roomId}) Complete Data`;
+            renderRoomDetail(parseInt(roomId));
+        } else if (isAdmin) {
+            heading.innerHTML = `📊 Room-wise Details: <select id="adminRoomSelector" style="margin-left:10px;">${[1,2,3,4,5,6,7,8].map(r => `<option value="${r}" ${adminSelectedRoom == r ? 'selected' : ''}>Room ${r}</option>`).join('')}</select>`;
+            renderRoomDetail(adminSelectedRoom);
+            document.getElementById("adminRoomSelector")?.addEventListener("change", (e) => {
+                adminSelectedRoom = parseInt(e.target.value);
+                renderRoomDetail(adminSelectedRoom);
+            });
+        }
+        
+        renderUsageTable();
+        renderPurchaseTable();
+        const purchaseSection = document.getElementById('purchaseHistorySection');
+        if (purchaseSection) purchaseSection.style.display = isAdmin ? 'block' : 'none';
+        document.getElementById("userRoleBadge").innerHTML = isAdmin ? "👑 Admin · Full Access" : `🏠 Room ${roomId} · Member`;
+    }
+    
+    async function showDashboard() {
+        document.getElementById("loginView").style.display = "none";
+        document.getElementById("dashboardView").style.display = "block";
+        await initializeData();
+        renderUI();
+    }
+    
+    function showLogin() {
+        document.getElementById("loginView").style.display = "block";
+        document.getElementById("dashboardView").style.display = "none";
+    }
+    
+    function persistSession() {
+        localStorage.setItem("nazrul_session", JSON.stringify(currentSession.isAdmin ? { isAdmin: true } : { isAdmin: false, room: currentSession.room }));
+    }
+    
+    function loadPersistedSession() {
+        const saved = localStorage.getItem("nazrul_session");
+        if (saved) {
+            try {
+                const session = JSON.parse(saved);
+                if (session.isAdmin === true) {
+                    currentSession = { isAdmin: true, room: null };
+                    return true;
+                } else if (session.room && session.room >= 1 && session.room <= 8) {
+                    currentSession = { isAdmin: false, room: session.room.toString() };
+                    return true;
+                }
+            } catch (e) {}
+        }
+        return false;
+    }
+    
+    function clearSession() {
+        localStorage.removeItem("nazrul_session");
+        currentSession = { isAdmin: false, room: null };
+    }
+    
+    async function init() {
+        await initializeData();
+        document.querySelectorAll(".tab-btn").forEach(btn => btn.onclick = () => {
+            const t = btn.dataset.tab;
+            document.getElementById("userLoginForm").style.display = t === "user" ? "flex" : "none";
+            document.getElementById("adminLoginForm").style.display = t === "admin" ? "flex" : "none";
+            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+        });
+        document.getElementById("userLoginBtn").onclick = () => {
+            const room = document.getElementById("userRoom").value;
+            const pass = document.getElementById("userPass").value;
+            const errorEl = document.getElementById("userError");
+            
+            if (!room || room < 1 || room > 8) {
+                showError(errorEl, "Please enter a valid room number (1-8)");
+                return;
+            }
+            if (!pass || pass.length < 4) {
+                showError(errorEl, "Password must be at least 4 characters");
+                return;
+            }
+            
+            const roomStr = room.toString();
+            if (currentData.room_passwords && currentData.room_passwords[roomStr] === pass) {
+                currentSession = { isAdmin: false, room: roomStr };
+                persistSession();
+                showDashboard();
+            } else {
+                showError(errorEl, "Invalid room number or password");
+            }
+        };
+        document.getElementById("adminLoginBtn").onclick = () => {
+            const user = document.getElementById("adminUser").value;
+            const pass = document.getElementById("adminPass").value;
+            const errorEl = document.getElementById("adminError");
+            
+            if (!user || user.length < 1) {
+                showError(errorEl, "Please enter admin username");
+                return;
+            }
+            if (!pass || pass.length < 4) {
+                showError(errorEl, "Password must be at least 4 characters");
+                return;
+            }
+            
+            if (user === currentData.admin_cred.username && pass === currentData.admin_cred.password) {
+                currentSession = { isAdmin: true, room: null };
+                persistSession();
+                showDashboard();
+            } else {
+                showError(errorEl, "Invalid admin credentials");
+            }
+        };
+        document.getElementById("logoutBtn").onclick = () => {
+            clearSession();
+            showLogin();
+        };
+        if (loadPersistedSession()) await showDashboard();
+        else showLogin();
+    }
+    
+    init();
+</script>
 </body>
 </html>
