@@ -1,0 +1,26 @@
+{
+  "name": "Nazrul Mess Water Management",
+  "short_name": "Nazrul Mess",
+  "description": "Water usage & billing management system for Nazrul Mess",
+  "id": "/index.html",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0f2a",
+  "theme_color": "#0a0f2a",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "192x192 512x512 1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "logo.png",
+      "sizes": "192x192 512x512 1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
