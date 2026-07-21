@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>No Internet Connection — Nazrul Mess</title>
+<meta name="theme-color" content="#0a0f2a">
+<link rel="icon" type="image/png" href="logo.png">
+<style>
+  :root{
+    --navy:#0b1f4d;
+    --blue:#1e6fd9;
+    --gold:#d4af6a;
+    --paper:#eef4fb;
+    --bg1:#0a0f2a;
+    --bg2:#122452;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;height:100%;
+    background:radial-gradient(ellipse at 50% 30%, var(--bg2) 0%, var(--bg1) 70%);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    overflow:hidden;
+  }
+  .stage{
+    position:relative;
+    width:100%;height:100vh;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    text-align:center;
+    padding:24px;
+    opacity:0;
+    animation:fadeIn 0.7s ease-out forwards;
+  }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+
+  /* Pulsing rings behind the icon */
+  .ring-wrap{
+    position:relative;
+    width:140px;height:140px;
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:28px;
+  }
+  .ring{
+    position:absolute;
+    border-radius:50%;
+    border:1px solid rgba(212,175,106,0.35);
+    animation:ringPulse 2.4s ease-out infinite;
+  }
+  .ring.r1{ width:100%; height:100%; }
+  .ring.r2{ width:100%; height:100%; animation-delay:0.6s; }
+  .ring.r3{ width:100%; height:100%; animation-delay:1.2s; }
+  @keyframes ringPulse{
+    0%{ transform:scale(0.5); opacity:0; }
+    30%{ opacity:0.9; }
+    100%{ transform:scale(1.3); opacity:0; }
+  }
+  .icon-badge{
+    position:relative;
+    width:86px;height:86px;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle, rgba(212,175,106,0.2) 0%, rgba(30,111,217,0.08) 60%, transparent 75%);
+    border:1px solid rgba(212,175,106,0.45);
+    animation:iconFloat 3s ease-in-out infinite;
+  }
+  @keyframes iconFloat{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(-6px); }
+  }
+  .icon-badge svg{ width:38px;height:38px; }
+  .icon-badge .bolt{
+    animation:blink 1.6s ease-in-out infinite;
+  }
+  @keyframes blink{
+    0%,100%{ opacity:1; }
+    50%{ opacity:0.25; }
+  }
+
+  h1{
+    margin:0;
+    color:var(--paper);
+    font-size:22px;
+    font-weight:700;
+    text-shadow:0 2px 12px rgba(30,111,217,0.5);
+  }
+  p{
+    margin:12px 0 30px;
+    color:#b9c6e6;
+    font-size:14px;
+    max-width:300px;
+    line-height:1.55;
+  }
+  .retry-btn{
+    background:linear-gradient(135deg, var(--blue), var(--navy));
+    color:var(--paper);
+    border:none;
+    padding:13px 34px;
+    border-radius:999px;
+    font-size:14px;
+    font-weight:600;
+    letter-spacing:0.5px;
+    cursor:pointer;
+    box-shadow:0 6px 18px rgba(30,111,217,0.35);
+    transition:transform 0.15s ease, opacity 0.15s ease;
+  }
+  .retry-btn:active{ transform:scale(0.96); }
+  .retry-btn:disabled{ opacity:0.6; cursor:default; }
+
+  .status{
+    margin-top:18px;
+    font-size:12px;
+    color:rgba(185,198,230,0.65);
+    letter-spacing:0.3px;
+    min-height:16px;
+  }
+  .status.pulse{ animation:statusPulse 1.4s ease-in-out infinite; }
+  @keyframes statusPulse{
+    0%,100%{ opacity:0.5; }
+    50%{ opacity:1; }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="ring-wrap">
+    <div class="ring r1"></div>
+    <div class="ring r2"></div>
+    <div class="ring r3"></div>
+    <div class="icon-badge">
+      <svg class="bolt" viewBox="0 0 24 24" fill="none" stroke="#d4af6a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="1" y1="1" x2="23" y2="23"></line>
+        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+        <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+        <line x1="12" y1="20" x2="12.01" y2="20"></line>
+      </svg>
+    </div>
+  </div>
+
+  <h1>No Internet Connection</h1>
+  <p>Please connect to a network to use Nazrul Mess Water Management.</p>
+  <button class="retry-btn" id="retryBtn">Retry</button>
+  <div class="status" id="statusText"></div>
+</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const next = params.get('next') || 'main.html';
+
+  const retryBtn = document.getElementById('retryBtn');
+  const statusText = document.getElementById('statusText');
+
+  // A lightweight, same-origin request is a more reliable connectivity
+  // check than navigator.onLine alone (which can report "online" even
+  // without real internet access).
+  async function hasRealConnection() {
+    if (!navigator.onLine) return false;
+    try {
+      await fetch('manifest.json', { method: 'GET', cache: 'no-store' });
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  async function attemptReturn(isManual) {
+    if (isManual) {
+      retryBtn.disabled = true;
+      retryBtn.textContent = 'Checking...';
+      statusText.textContent = '';
+    }
+    const online = await hasRealConnection();
+    if (online) {
+      statusText.textContent = 'Connected — loading...';
+      window.location.replace(next);
+      return;
+    }
+    if (isManual) {
+      retryBtn.disabled = false;
+      retryBtn.textContent = 'Retry';
+      statusText.textContent = 'Still no connection.';
+    }
+  }
+
+  retryBtn.addEventListener('click', () => attemptReturn(true));
+
+  // Auto-retry the moment the browser thinks connectivity is back...
+  window.addEventListener('online', () => attemptReturn(false));
+
+  // ...and also poll every few seconds as a fallback, since the
+  // 'online' event isn't always fired reliably on every device.
+  statusText.classList.add('pulse');
+  statusText.textContent = 'Checking connection automatically...';
+  setInterval(() => attemptReturn(false), 5000);
+</script>
+</body>
+</html>
