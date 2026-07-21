@@ -160,6 +160,58 @@
     font-style:italic;
     letter-spacing:1px;
   }
+
+  /* ---------- No internet connection screen ---------- */
+  .offline-view{
+    position:absolute;
+    inset:0;
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:24px;
+    opacity:0;
+    animation:textIn 0.6s ease-out forwards;
+  }
+  .offline-view.show{ display:flex; }
+  .offline-icon{
+    width:86px;height:86px;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle, rgba(212,175,106,0.18) 0%, transparent 70%);
+    border:1px solid rgba(212,175,106,0.4);
+    margin-bottom:22px;
+  }
+  .offline-icon svg{ width:40px;height:40px; }
+  .offline-view h2{
+    margin:0;
+    color:var(--paper);
+    font-size:21px;
+    font-weight:700;
+  }
+  .offline-view p{
+    margin:10px 0 26px;
+    color:#b9c6e6;
+    font-size:14px;
+    max-width:280px;
+    line-height:1.5;
+  }
+  .retry-btn{
+    background:linear-gradient(135deg, var(--blue), var(--navy));
+    color:var(--paper);
+    border:none;
+    padding:12px 30px;
+    border-radius:999px;
+    font-size:14px;
+    font-weight:600;
+    letter-spacing:0.5px;
+    cursor:pointer;
+    box-shadow:0 6px 18px rgba(30,111,217,0.35);
+    transition:transform 0.15s ease;
+  }
+  .retry-btn:active{ transform:scale(0.96); }
+  .retry-btn.checking{ opacity:0.7; pointer-events:none; }
 </style>
 </head>
 <body>
@@ -178,6 +230,23 @@
   <div class="caption">
     <h1>NAZRUL MESS</h1>
     <p>UNITY IS THE SIGN OF HAPPYNESS</p>
+  </div>
+
+  <div class="offline-view" id="offlineView">
+    <div class="offline-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#d4af6a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="1" y1="1" x2="23" y2="23"></line>
+        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+        <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+        <line x1="12" y1="20" x2="12.01" y2="20"></line>
+      </svg>
+    </div>
+    <h2>No Internet Connection</h2>
+    <p>Please connect to a network to use Nazrul Mess Water Management.</p>
+    <button class="retry-btn" id="retryBtn">Retry</button>
   </div>
 </div>
 
@@ -199,9 +268,68 @@
   const navEntries = performance.getEntriesByType('navigation');
   const isRefresh = navEntries.length > 0 && navEntries[0].type === 'reload';
 
-  // If refreshed, skip animation and go straight to main app
-  if (isRefresh) {
+  const stage = document.getElementById('stage');
+  const offlineView = document.getElementById('offlineView');
+  const retryBtn = document.getElementById('retryBtn');
+
+  // navigator.onLine alone isn't fully reliable (it can report "online"
+  // even when there's no real internet access), so we back it up with
+  // an actual network request to a same-origin file.
+  async function hasRealConnection() {
+    if (!navigator.onLine) return false;
+    try {
+      await fetch('main.html', { method: 'HEAD', cache: 'no-store' });
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function showOfflineScreen() {
+    stage.style.display = 'none';
+    offlineView.classList.add('show');
+  }
+
+  function goToMain() {
     window.location.replace('main.html');
+  }
+
+  async function proceedIfOnline({ withFade } = { withFade: false }) {
+    if (await hasRealConnection()) {
+      if (withFade) {
+        document.body.classList.add('leaving');
+        setTimeout(goToMain, FADE_OUT_TIME);
+      } else {
+        goToMain();
+      }
+      return true;
+    }
+    showOfflineScreen();
+    return false;
+  }
+
+  retryBtn.addEventListener('click', async () => {
+    retryBtn.classList.add('checking');
+    retryBtn.textContent = 'Checking...';
+    const online = await proceedIfOnline({ withFade: false });
+    if (!online) {
+      retryBtn.classList.remove('checking');
+      retryBtn.textContent = 'Retry';
+    }
+  });
+
+  // If the connection comes back on its own while the offline screen is
+  // showing, move on automatically without making the user tap Retry.
+  window.addEventListener('online', () => {
+    if (offlineView.classList.contains('show')) proceedIfOnline({ withFade: false });
+  });
+
+  const FADE_OUT_TIME = 600;
+
+  // If refreshed, skip animation and go straight to main app (after
+  // confirming there's actually a connection).
+  if (isRefresh) {
+    proceedIfOnline({ withFade: false });
   } else {
     // 1. Create background stars
     const starsEl = document.getElementById('stars');
@@ -216,7 +344,6 @@
     }
 
     // 2. Create sparkles
-    const stage = document.getElementById('stage');
     const count = 8;
     const radius = 210;
     for (let i = 0; i < count; i++) {
@@ -233,13 +360,9 @@
 
     // 3. Auto-redirect timer
     const REDIRECT_DELAY = 3200;
-    const FADE_OUT_TIME = 600;
 
     setTimeout(() => {
-      document.body.classList.add('leaving');
-      setTimeout(() => {
-        window.location.replace('main.html');
-      }, FADE_OUT_TIME);
+      proceedIfOnline({ withFade: true });
     }, REDIRECT_DELAY);
   }
   
