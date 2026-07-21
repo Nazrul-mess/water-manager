@@ -1303,11 +1303,6 @@
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').then((reg) => reg.update()).catch(() => {});
     }
-    // Belt-and-braces: actively wipe any cache left over from an earlier
-    // version of this app, right now, from the page itself.
-    if ('caches' in window) {
-        caches.keys().then((keys) => keys.forEach((key) => caches.delete(key)));
-    }
 
     const installBtn = document.getElementById('installAppBtn');
     const iosHint = document.getElementById('iosInstallHint');
