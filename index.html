@@ -256,13 +256,6 @@
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then((reg) => reg.update()).catch(() => {});
   }
-  // Belt-and-braces: actively wipe any cache left over from an earlier
-  // version of this app, right now, from the page itself. This doesn't
-  // wait on the service worker's own update lifecycle, so old cached
-  // files (like an old config.js) get removed immediately on load.
-  if ('caches' in window) {
-    caches.keys().then((keys) => keys.forEach((key) => caches.delete(key)));
-  }
 
   // Check if the page is being REFRESHED by the user
   const navEntries = performance.getEntriesByType('navigation');
