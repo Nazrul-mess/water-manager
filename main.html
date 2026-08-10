@@ -64,6 +64,9 @@
             <div class="action-card" id="purchaseHistorySection" style="display:none;"><h3>📦 Water Purchase History</h3><div style="overflow-x:auto;"><table id="purchaseTable"><thead><tr><th>Date</th><th>Units Added</th><th>Total Cost (₹)</th><th>Added By</th></tr></thead><tbody id="purchaseTableBody"><tr><td colspan="4">Loading...</td></tr></tbody></table></div></div>
             <div class="action-card"><h3>🚰 Room Water Usage Log</h3><div style="overflow-x:auto;"><table id="usageTable"><thead><tr><th>Room</th><th>Units Used</th><th>Date</th><th>Cost (₹)</th></tr></thead><tbody id="usageTableBody"><tr><td colspan="4">Loading...</td></tr></tbody></table></div></div>
             <div id="qrSection"></div>
+            <div style="text-align:center; padding: 24px 0 8px;">
+                <a href="sheets.html" id="sheetsPageLink" target="_blank" rel="noopener" class="btn-primary-link">📄 View Details Sheet</a>
+            </div>
         </div>
     </div>
 </div>
@@ -77,6 +80,15 @@
         DEFAULT_ADMIN_USERNAME,
         DEFAULT_ADMIN_PASSWORD
     } from "./config.js";
+
+    // ==================== ROOM PASSBOOK SHEET EMBEDS ====================
+    // Each room's Google Sheet tab, published as an embeddable iframe
+    // (File > Share > Publish to web, per-tab link, in Google Sheets).
+    // Add the rest of the rooms here as you get their published links —
+    // rooms without an entry just show a disabled "coming soon" button.
+    const ROOM_SHEET_URLS = {
+        "1": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRV7hBh_s02XKs6i0FTeEv4K8ItIfLhRjMDpMVBLH_vw-LbkS6U2NXuutwfMLHv5UypFxJ8Xef4PK7Q/pubhtml?gid=910776185&single=true&widget=true&headers=false"
+    };
 
     // ==================== DATABASE (single source of truth: Firestore) ====================
     const app = initializeApp(firebaseConfig);
@@ -206,7 +218,7 @@
         return '₹' + Math.round(amount * 100) / 100; 
     }
 
-    // ==================== GOOGLE SHEET (passbook) ====================
+    // ==================== GOOGLE SHEET (Details Sheet) ====================
     async function pushToGoogleSheet(entry) {
         try {
             let sheetName = "Master_Summary";
@@ -848,7 +860,37 @@
             html += `<p>No advance payments recorded.</p>`;
         }
         html += `</div>`;
+        html += `<div style="margin-top:14px;">
+            <button type="button" id="toggleSheetBtn" class="btn-secondary">📄 More Details</button>
+            <div id="roomSheetEmbedContainer" style="display:none; margin-top:12px;"></div>
+        </div>`;
         panel.innerHTML = html;
+
+        const toggleBtn = document.getElementById("toggleSheetBtn");
+        const embedContainer = document.getElementById("roomSheetEmbedContainer");
+        const sheetUrl = ROOM_SHEET_URLS[r];
+        if (toggleBtn && embedContainer) {
+            if (!sheetUrl) {
+                toggleBtn.disabled = true;
+                toggleBtn.title = "Details sheet not linked for this room yet";
+                toggleBtn.textContent = "📄 More Details (coming soon)";
+            } else {
+                toggleBtn.addEventListener("click", () => {
+                    const isOpen = embedContainer.style.display !== "none";
+                    if (isOpen) {
+                        embedContainer.style.display = "none";
+                        toggleBtn.textContent = "📄 More Details";
+                    } else {
+                        if (!embedContainer.dataset.loaded) {
+                            embedContainer.innerHTML = `<iframe src="${sheetUrl}" style="width:100%;height:420px;border:1px solid rgba(11,31,77,0.15);border-radius:10px;" loading="lazy"></iframe>`;
+                            embedContainer.dataset.loaded = "1";
+                        }
+                        embedContainer.style.display = "block";
+                        toggleBtn.textContent = "📄 Hide Details";
+                    }
+                });
+            }
+        }
     }
     
     // Debounced event handlers
@@ -1175,6 +1217,17 @@
         const purchaseSection = document.getElementById('purchaseHistorySection');
         if (purchaseSection) purchaseSection.style.display = isAdmin ? 'block' : 'none';
         document.getElementById("userRoleBadge").innerHTML = isAdmin ? "👑 Admin · Full Access" : `🏠 Room ${roomId} · Member`;
+
+        const sheetsLink = document.getElementById("sheetsPageLink");
+        if (sheetsLink) {
+            if (isAdmin) {
+                sheetsLink.href = "sheets.html?role=admin";
+                sheetsLink.textContent = "📄 View All Room Details Sheets";
+            } else if (roomId) {
+                sheetsLink.href = `sheets.html?role=user&room=${roomId}`;
+                sheetsLink.textContent = "📄 View My Room's Details Sheet";
+            }
+        }
     }
     
     async function showDashboard() {
