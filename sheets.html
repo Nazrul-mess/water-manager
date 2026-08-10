@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Details Sheets — Nazrul Mess</title>
+<meta name="theme-color" content="#0a0f2a">
+<link rel="icon" type="image/png" href="logo.png">
+<style>
+  :root{
+    --navy:#0b1f4d;
+    --blue:#1e6fd9;
+    --gold:#d4af6a;
+    --paper:#eef4fb;
+    --bg-light:#f4f9fe;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;
+    min-height:100%;
+    background:var(--bg-light);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color:#0b1f4d;
+  }
+  header{
+    position:relative;
+    background: radial-gradient(ellipse at 50% 20%, #122452 0%, #0a0f2a 75%);
+    padding: 22px 20px 26px;
+    text-align:center;
+  }
+  header h1{
+    margin:0;
+    color:var(--paper);
+    font-size:19px;
+    font-weight:700;
+  }
+  header p{
+    margin:6px 0 0;
+    color:var(--gold);
+    font-size:12.5px;
+    font-style:italic;
+    letter-spacing:0.5px;
+  }
+  .back-link{
+    position:absolute;
+    top:18px; left:18px;
+    color:var(--paper);
+    text-decoration:none;
+    font-size:13px;
+    opacity:0.85;
+  }
+  .back-link:hover{ opacity:1; }
+
+  main{
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 22px 16px 40px;
+  }
+
+  .section-label{
+    font-size: 13px;
+    font-weight:700;
+    color:#7f8fb3;
+    text-transform:uppercase;
+    letter-spacing:0.6px;
+    margin: 22px 4px 10px;
+  }
+  .section-label:first-child{ margin-top:0; }
+
+  .sheet-card{
+    background:#fff;
+    border-radius: 14px;
+    border: 1px solid #e2e9f5;
+    margin-bottom: 12px;
+    overflow:hidden;
+  }
+  .sheet-card-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 14px 16px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .sheet-card-header h3{
+    margin:0;
+    font-size:14.5px;
+    color:#0b1f4d;
+  }
+  .sheet-card-header .chevron{
+    transition: transform 0.2s ease;
+    color:#7f8fb3;
+    font-size:13px;
+  }
+  .sheet-card.open .chevron{ transform: rotate(180deg); }
+  .sheet-card.disabled .sheet-card-header{ cursor:default; }
+  .sheet-card.disabled h3{ color:#aab6cf; }
+  .badge-soon{
+    font-size:10.5px;
+    background:#eef4fb;
+    color:#7f8fb3;
+    padding:3px 8px;
+    border-radius:999px;
+    margin-left:8px;
+    font-weight:600;
+  }
+  .sheet-card-body{
+    display:none;
+    padding: 0 16px 16px;
+  }
+  .sheet-card.open .sheet-card-body{ display:block; }
+  .sheet-card iframe{
+    width:100%;
+    height: 480px;
+    border: 1px solid #e2e9f5;
+    border-radius: 10px;
+  }
+
+  /* Single fixed view for members (no accordion needed, just one sheet) */
+  .single-sheet h2{
+    font-size:16px;
+    margin: 4px 4px 12px;
+  }
+  .single-sheet iframe{
+    width:100%;
+    height: 520px;
+    border: 1px solid #e2e9f5;
+    border-radius: 12px;
+    background:#fff;
+  }
+
+  .notice{
+    text-align:center;
+    color:#7f8fb3;
+    font-size:14px;
+    padding: 60px 20px;
+    line-height:1.6;
+  }
+  .notice a{ color:var(--blue); font-weight:600; text-decoration:none; }
+</style>
+</head>
+<body>
+<header>
+  <a class="back-link" href="main.html">← Back</a>
+  <h1>📄 Details Sheets</h1>
+  <p>UNITY IS THE SIGN OF HAPPYNESS</p>
+</header>
+
+<main id="mainContent">
+  <div class="notice">Loading...</div>
+</main>
+
+<script>
+  const ROOM_SHEET_URLS = {
+    "1": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRV7hBh_s02XKs6i0FTeEv4K8ItIfLhRjMDpMVBLH_vw-LbkS6U2NXuutwfMLHv5UypFxJ8Xef4PK7Q/pubhtml?gid=910776185&amp;single=true&amp;widget=true&amp;headers=false",
+    "2": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRV7hBh_s02XKs6i0FTeEv4K8ItIfLhRjMDpMVBLH_vw-LbkS6U2NXuutwfMLHv5UypFxJ8Xef4PK7Q/pubhtml?gid=1629432140&amp;single=true&amp;widget=true&amp;headers=false",
+    "3": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRV7hBh_s02XKs6i0FTeEv4K8ItIfLhRjMDpMVBLH_vw-LbkS6U2NXuutwfMLHv5UypFxJ8Xef4PK7Q/pubhtml?gid=2092710598&amp;single=true&amp;widget=true&amp;headers=false",
+    "4": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRV7hBh_s02XKs6i0FTeEv4K8ItIfLhRjMDpMVBLH_vw-LbkS6U2NXuutwfMLHv5UypFxJ8Xef4PK7Q/pubhtml?gid=1371908801&amp;single=true&amp;widget=true&amp;headers=false",
+    "5": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRV7hBh_s02XKs6i0FTeEv4K8ItIfLhRjMDpMVBLH_vw-LbkS6U2NXuutwfMLHv5UypFxJ8Xef4PK7Q/pubhtml?gid=1429749661&amp;single=true&amp;widget=true&amp;headers=false",
+    "6": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRV7hBh_s02XKs6i0FTeEv4K8ItIfLhRjMDpMVBLH_vw-LbkS6U2NXuutwfMLHv5UypFxJ8Xef4PK7Q/pubhtml?gid=1622124997&amp;single=true&amp;widget=true&amp;headers=false",
+    "7": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRV7hBh_s02XKs6i0FTeEv4K8ItIfLhRjMDpMVBLH_vw-LbkS6U2NXuutwfMLHv5UypFxJ8Xef4PK7Q/pubhtml?gid=1408369666&amp;single=true&amp;widget=true&amp;headers=false",
+    "8": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRV7hBh_s02XKs6i0FTeEv4K8ItIfLhRjMDpMVBLH_vw-LbkS6U2NXuutwfMLHv5UypFxJ8Xef4PK7Q/pubhtml?gid=1176460031&amp;single=true&amp;widget=true&amp;headers=false",
+        
+  };
+
+  const EXTRA_SHEET_URLS = {
+    "Master Summary": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRV7hBh_s02XKs6i0FTeEv4K8ItIfLhRjMDpMVBLH_vw-LbkS6U2NXuutwfMLHv5UypFxJ8Xef4PK7Q/pubhtml?gid=257660273&amp;single=true&amp;widget=true&amp;headers=false",
+    "Admin Actions": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRV7hBh_s02XKs6i0FTeEv4K8ItIfLhRjMDpMVBLH_vw-LbkS6U2NXuutwfMLHv5UypFxJ8Xef4PK7Q/pubhtml?gid=933588607&amp;single=true&amp;widget=true&amp;headers=false",
+    "Room Summary" : "https://docs.google.com/spreadsheets/d/e/2PACX-1vRV7hBh_s02XKs6i0FTeEv4K8ItIfLhRjMDpMVBLH_vw-LbkS6U2NXuutwfMLHv5UypFxJ8Xef4PK7Q/pubhtml?gid=146101329&amp;single=true&amp;widget=true&amp;headers=false"
+  };
+
+  const params = new URLSearchParams(location.search);
+  const role = params.get('role');
+  const room = params.get('room');
+  const main = document.getElementById('mainContent');
+
+  function sheetCard(title, url, { openByDefault = false } = {}) {
+    const has = !!url;
+    const card = document.createElement('div');
+    card.className = 'sheet-card' + (has ? '' : ' disabled') + (has && openByDefault ? ' open' : '');
+    card.innerHTML = `
+      <div class="sheet-card-header">
+        <h3>${title}${has ? '' : '<span class="badge-soon">coming soon</span>'}</h3>
+        ${has ? '<span class="chevron">▾</span>' : ''}
+      </div>
+      <div class="sheet-card-body"></div>
+    `;
+    if (has) {
+      const header = card.querySelector('.sheet-card-header');
+      const body = card.querySelector('.sheet-card-body');
+      header.addEventListener('click', () => {
+        const isOpen = card.classList.toggle('open');
+        if (isOpen && !body.dataset.loaded) {
+          body.innerHTML = `<iframe src="${url}" loading="lazy"></iframe>`;
+          body.dataset.loaded = '1';
+        }
+      });
+      if (openByDefault) {
+        body.innerHTML = `<iframe src="${url}" loading="lazy"></iframe>`;
+        body.dataset.loaded = '1';
+      }
+    }
+    return card;
+  }
+
+  function renderMemberView(roomNum) {
+    const url = ROOM_SHEET_URLS[roomNum];
+    main.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'single-sheet';
+    if (url) {
+      wrap.innerHTML = `<h2>🏠 Room ${roomNum} — Details Sheet</h2><iframe src="${url}" loading="lazy"></iframe>`;
+    } else {
+      wrap.innerHTML = `<div class="notice">The details sheet for Room ${roomNum} isn't linked yet. Please check back later.</div>`;
+    }
+    main.appendChild(wrap);
+  }
+
+  function renderAdminView() {
+    main.innerHTML = '';
+
+    const roomsLabel = document.createElement('div');
+    roomsLabel.className = 'section-label';
+    roomsLabel.textContent = 'Room Details Sheets';
+    main.appendChild(roomsLabel);
+
+    for (let r = 1; r <= 8; r++) {
+      main.appendChild(sheetCard(`Room ${r}`, ROOM_SHEET_URLS[r]));
+    }
+
+    const extraLabel = document.createElement('div');
+    extraLabel.className = 'section-label';
+    extraLabel.textContent = 'Other Sheets';
+    main.appendChild(extraLabel);
+
+    Object.entries(EXTRA_SHEET_URLS).forEach(([title, url]) => {
+      main.appendChild(sheetCard(title, url));
+    });
+  }
+
+  function renderInvalidAccess() {
+    main.innerHTML = `<div class="notice">This page needs to be opened from inside the app.<br><a href="main.html">Go to the app →</a></div>`;
+  }
+
+  if (role === 'admin') {
+    renderAdminView();
+  } else if (role === 'user' && room) {
+    renderMemberView(room);
+  } else {
+    renderInvalidAccess();
+  }
+</script>
+</body>
+</html>
