@@ -64,9 +64,6 @@
             <div class="action-card" id="purchaseHistorySection" style="display:none;"><h3>📦 Water Purchase History</h3><div style="overflow-x:auto;"><table id="purchaseTable"><thead><tr><th>Date</th><th>Units Added</th><th>Total Cost (₹)</th><th>Added By</th></tr></thead><tbody id="purchaseTableBody"><tr><td colspan="4">Loading...</td></tr></tbody></table></div></div>
             <div class="action-card"><h3>🚰 Room Water Usage Log</h3><div style="overflow-x:auto;"><table id="usageTable"><thead><tr><th>Room</th><th>Units Used</th><th>Date</th><th>Cost (₹)</th></tr></thead><tbody id="usageTableBody"><tr><td colspan="4">Loading...</td></tr></tbody></table></div></div>
             <div id="qrSection"></div>
-            <div style="text-align:center; padding: 24px 0 8px;">
-                <a href="sheets.html" id="sheetsPageLink" target="_blank" rel="noopener" class="btn-primary-link">📄 View Details Sheet</a>
-            </div>
         </div>
     </div>
 </div>
@@ -80,15 +77,6 @@
         DEFAULT_ADMIN_USERNAME,
         DEFAULT_ADMIN_PASSWORD
     } from "./config.js";
-
-    // ==================== ROOM PASSBOOK SHEET EMBEDS ====================
-    // Each room's Google Sheet tab, published as an embeddable iframe
-    // (File > Share > Publish to web, per-tab link, in Google Sheets).
-    // Add the rest of the rooms here as you get their published links —
-    // rooms without an entry just show a disabled "coming soon" button.
-    const ROOM_SHEET_URLS = {
-        "1": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRV7hBh_s02XKs6i0FTeEv4K8ItIfLhRjMDpMVBLH_vw-LbkS6U2NXuutwfMLHv5UypFxJ8Xef4PK7Q/pubhtml?gid=910776185&single=true&widget=true&headers=false"
-    };
 
     // ==================== DATABASE (single source of truth: Firestore) ====================
     const app = initializeApp(firebaseConfig);
@@ -329,6 +317,33 @@
         updateDbStatus("🔄 Syncing...");
 
         try {
+            // If a previous session ended with an unsynced change (e.g. the
+            // app was closed while offline), that change is the newest
+            // truth we have. Try to push it FIRST - reading fresh data from
+            // Firestore and displaying/overwriting it before that retry
+            // happens is exactly how a real change quietly disappears.
+            let pendingWrite;
+            try { pendingWrite = JSON.parse(localStorage.getItem(PENDING_FIRESTORE_KEY) || "null"); } catch (e) { pendingWrite = null; }
+
+            if (pendingWrite) {
+                const ok = await writeToFirestore(pendingWrite.data);
+                currentData = { ...DEFAULT_DATA, ...pendingWrite.data };
+                localStorage.setItem("nazrul_water_backup", JSON.stringify(currentData));
+                if (ok) {
+                    clearPendingFirestoreWrite();
+                    updateDbStatus("✅ Synced");
+                    showToast("✅ Synced a change from earlier that hadn't gone through.", "success");
+                    isSyncing = false;
+                    await flushPendingSheetPushes();
+                    return true;
+                } else {
+                    updateDbStatus("⚠️ Offline - unsynced change from earlier");
+                    showToast("⚠️ Still can't reach the database. Showing your last unsynced change - it will keep retrying.", "error");
+                    isSyncing = false;
+                    return true;
+                }
+            }
+
             const firestoreResult = await readFromFirestore();
 
             if (firestoreResult.success && firestoreResult.data) {
@@ -370,7 +385,33 @@
         return true;
     }
 
-    // ==================== TRANSACTION LOG ====================
+    // ==================== HISTORY RETENTION ====================
+    // History used to be capped by a raw entry COUNT (pop once over 50
+    // entries). With 8 rooms all logging activity into shared arrays, that
+    // count could be reached in just days during a busy week — silently
+    // cutting "details / history" views well under a month even though
+    // Firestore document size wasn't actually a concern yet. This trims by
+    // DATE instead, so at least the last 30 days is always kept.
+    const MIN_HISTORY_DAYS = 30;
+
+    function withinHistoryWindow(entry, days = MIN_HISTORY_DAYS) {
+        const raw = entry && (entry.timestamp !== undefined ? entry.timestamp : entry.date);
+        const ts = typeof raw === 'number' ? raw : Date.parse(raw);
+        if (isNaN(ts)) return true; // never discard an entry we can't date
+        return ts >= Date.now() - days * 24 * 60 * 60 * 1000;
+    }
+
+    // Trims a log array down to the last MIN_HISTORY_DAYS. If every entry
+    // happens to fall outside that window (e.g. a very quiet month) the
+    // array is returned unchanged rather than emptied, so nothing that was
+    // actually recorded ever just disappears.
+    function trimLog(log) {
+        if (!Array.isArray(log) || !log.length) return log || [];
+        const kept = log.filter(e => withinHistoryWindow(e));
+        return kept.length ? kept : log;
+    }
+
+    
     function addTransactionLog(entry) {
         const logEntry = {
             id: Date.now() + Math.random().toString(36).substr(2, 8),
@@ -382,29 +423,117 @@
         };
         if (!currentData.transaction_log) currentData.transaction_log = [];
         currentData.transaction_log.unshift(logEntry);
+        currentData.transaction_log = trimLog(currentData.transaction_log);
         return logEntry;
     }
+
+    // ==================== RETRY QUEUES (offline / failed-write resilience) ====================
+    // Firestore is the single source of truth. The Google Sheet is only a
+    // read-friendly mirror of it. To make sure the two can never disagree
+    // in a way nobody notices, the rule enforced everywhere below is:
+    // the Sheet is NEVER written to for a change until Firestore has
+    // confirmed that exact change was saved. If Firestore fails, the
+    // change (and, once it's confirmed, its Sheet entry) is queued on
+    // this device and retried automatically - it is never dropped.
+    const PENDING_FIRESTORE_KEY = "nazrul_pending_firestore_write"; // latest unsynced snapshot (or absent)
+    const PENDING_SHEET_KEY = "nazrul_pending_sheet_pushes";        // array of entries awaiting the Sheet
+
+    function queuePendingFirestoreWrite(dataSnapshot) {
+        try {
+            localStorage.setItem(PENDING_FIRESTORE_KEY, JSON.stringify({ data: dataSnapshot, queuedAt: Date.now() }));
+        } catch (e) { console.error("Could not queue pending write:", e); }
+    }
+    function clearPendingFirestoreWrite() { localStorage.removeItem(PENDING_FIRESTORE_KEY); }
+
+    function queueSheetPush(entry) {
+        try {
+            const pending = JSON.parse(localStorage.getItem(PENDING_SHEET_KEY) || "[]");
+            pending.push({ entry, queuedAt: Date.now() });
+            if (pending.length > 300) pending.shift(); // sane upper bound
+            localStorage.setItem(PENDING_SHEET_KEY, JSON.stringify(pending));
+        } catch (e) { console.error("Could not queue sheet push:", e); }
+    }
+
+    async function flushPendingSheetPushes() {
+        let pending;
+        try { pending = JSON.parse(localStorage.getItem(PENDING_SHEET_KEY) || "[]"); } catch (e) { return; }
+        if (!pending.length) return;
+        const stillPending = [];
+        for (const item of pending) {
+            const ok = await pushToGoogleSheet(item.entry);
+            if (!ok) stillPending.push(item);
+        }
+        localStorage.setItem(PENDING_SHEET_KEY, JSON.stringify(stillPending));
+    }
+
+    // Fire-and-forget on purpose: the Sheet webhook (Apps Script) can take
+    // several seconds, especially if several rooms post around the same
+    // time. Awaiting it before showing "Synced" is what made every action
+    // feel slow even though the real database (Firestore) was already
+    // saved. If it fails, it's queued and retried in the background.
+    function pushToGoogleSheetWithRetry(entry) {
+        pushToGoogleSheet(entry).then((ok) => {
+            if (!ok) queueSheetPush(entry);
+        }).catch(() => queueSheetPush(entry));
+    }
+
+    async function flushPendingWrites() {
+        if (isSyncing) return;
+        let pendingWrite;
+        try { pendingWrite = JSON.parse(localStorage.getItem(PENDING_FIRESTORE_KEY) || "null"); } catch (e) { pendingWrite = null; }
+
+        if (pendingWrite) {
+            const ok = await writeToFirestore(pendingWrite.data);
+            if (!ok) return; // still can't reach Firestore - try again next tick
+            clearPendingFirestoreWrite();
+            updateDbStatus("✅ Synced");
+            showToast("✅ A previously unsaved change is now synced.", "success");
+        }
+        // Only reachable once Firestore is confirmed current (either there
+        // was nothing pending, or the retry above just succeeded) - now
+        // it's safe to send any Sheet entries that were held back.
+        await flushPendingSheetPushes();
+    }
+
+    window.addEventListener('online', flushPendingWrites);
+    setInterval(flushPendingWrites, 30000);
 
     async function syncAfterModification(entryForSheet = null) {
         if (isSyncing) return;
         isSyncing = true;
-        
+
         updateDbStatus("🔄 Syncing changes...");
-        
+
+        // Snapshot exactly what needs to be saved right now, so a later
+        // retry writes precisely this state - not whatever currentData
+        // happens to look like by the time the retry runs.
+        const snapshot = JSON.parse(JSON.stringify(currentData));
+
         try {
-            const firestoreOk = await writeToFirestore(currentData);
-            updateDbStatus(firestoreOk ? "✅ Synced" : "⚠️ Offline - using local");
-            
-            localStorage.setItem("nazrul_water_backup", JSON.stringify(currentData));
-            
-            if (entryForSheet) {
-                await pushToGoogleSheet(entryForSheet);
+            const firestoreOk = await writeToFirestore(snapshot);
+
+            if (firestoreOk) {
+                updateDbStatus("✅ Synced");
+                localStorage.setItem("nazrul_water_backup", JSON.stringify(currentData));
+                clearPendingFirestoreWrite();
+                if (entryForSheet) pushToGoogleSheetWithRetry(entryForSheet);
+            } else {
+                // Do NOT touch the Sheet here. Pushing now would show the
+                // change in the Sheet while the real database still doesn't
+                // have it - the exact "sheet updated, database didn't" bug.
+                updateDbStatus("⚠️ Offline - change saved on this device, will retry");
+                queuePendingFirestoreWrite(snapshot);
+                if (entryForSheet) queueSheetPush(entryForSheet);
+                showToast("⚠️ Couldn't reach the database. This change is saved on this device and will sync automatically.", "error");
             }
         } catch (error) {
             console.error("Sync error:", error);
             updateDbStatus("⚠️ Sync Failed");
+            queuePendingFirestoreWrite(snapshot);
+            if (entryForSheet) queueSheetPush(entryForSheet);
+            showToast("⚠️ Sync failed. This change is saved on this device and will retry automatically.", "error");
         }
-        
+
         isSyncing = false;
         renderUI();
     }
@@ -536,7 +665,7 @@
             date: new Date().toISOString().slice(0,10), 
             timestamp: Date.now() 
         });
-        if (currentData.advance_transactions.length > 50) currentData.advance_transactions.pop();
+        currentData.advance_transactions = trimLog(currentData.advance_transactions);
         return true;
     }
     
@@ -576,8 +705,8 @@
                 date: new Date().toISOString().slice(0,10), 
                 cost: Math.round(waterCost * 100) / 100 
             });
-            if (currentData.water_purchase_log.length > 50) currentData.water_purchase_log.pop();
-            if (currentData.detailed_usage_log.length > 50) currentData.detailed_usage_log.pop();
+            currentData.water_purchase_log = trimLog(currentData.water_purchase_log);
+            currentData.detailed_usage_log = trimLog(currentData.detailed_usage_log);
             
             addTransactionLog({
                 room: "ADMIN",
@@ -663,7 +792,7 @@
                 date: new Date().toISOString().slice(0,10), 
                 cost: roundedCost 
             });
-            if (currentData.detailed_usage_log.length > 50) currentData.detailed_usage_log.pop();
+            currentData.detailed_usage_log = trimLog(currentData.detailed_usage_log);
             
             addTransactionLog({
                 room: roomStr,
@@ -812,7 +941,7 @@
             tbody.innerHTML = "<tr><td colspan='4'>No water purchase records</td></tr>";
             return;
         }
-        tbody.innerHTML = purchases.slice(0, 20).map(p => 
+        tbody.innerHTML = purchases.map(p => 
             `<tr><td>${p.date || 'N/A'}</td><td>${p.units || 0} units</td><td>${formatCurrency(p.cost || 0)}</td><td>${p.added_by || "Admin"}</td></tr>`
         ).join('');
     }
@@ -820,7 +949,7 @@
     function renderUsageTable() {
         const tbody = document.getElementById("usageTableBody");
         if (!tbody) return;
-        let logs = (currentData.detailed_usage_log || []).slice(0, 20).filter(l => l.room !== "ADMIN_PURCHASE");
+        let logs = (currentData.detailed_usage_log || []).filter(l => l.room !== "ADMIN_PURCHASE");
         if (!currentSession.isAdmin && currentSession.room) {
             logs = logs.filter(l => l.room === currentSession.room);
         }
@@ -854,43 +983,13 @@
             <h5>📜 Advance Payment History</h5>`;
         if (roomAdvances.length) {
             html += `<table><thead><tr><th>Date</th><th>Amount (₹)</th></tr></thead><tbody>`;
-            roomAdvances.slice(0, 10).forEach(t => { html += `<tr><td>${t.date || 'N/A'}</td><td>${formatCurrency(t.amount || 0)}</td></tr>`; });
+            roomAdvances.forEach(t => { html += `<tr><td>${t.date || 'N/A'}</td><td>${formatCurrency(t.amount || 0)}</td></tr>`; });
             html += `</tbody></table>`;
         } else {
             html += `<p>No advance payments recorded.</p>`;
         }
         html += `</div>`;
-        html += `<div style="margin-top:14px;">
-            <button type="button" id="toggleSheetBtn" class="btn-secondary">📄 More Details</button>
-            <div id="roomSheetEmbedContainer" style="display:none; margin-top:12px;"></div>
-        </div>`;
         panel.innerHTML = html;
-
-        const toggleBtn = document.getElementById("toggleSheetBtn");
-        const embedContainer = document.getElementById("roomSheetEmbedContainer");
-        const sheetUrl = ROOM_SHEET_URLS[r];
-        if (toggleBtn && embedContainer) {
-            if (!sheetUrl) {
-                toggleBtn.disabled = true;
-                toggleBtn.title = "Details sheet not linked for this room yet";
-                toggleBtn.textContent = "📄 More Details (coming soon)";
-            } else {
-                toggleBtn.addEventListener("click", () => {
-                    const isOpen = embedContainer.style.display !== "none";
-                    if (isOpen) {
-                        embedContainer.style.display = "none";
-                        toggleBtn.textContent = "📄 More Details";
-                    } else {
-                        if (!embedContainer.dataset.loaded) {
-                            embedContainer.innerHTML = `<iframe src="${sheetUrl}" style="width:100%;height:420px;border:1px solid rgba(11,31,77,0.15);border-radius:10px;" loading="lazy"></iframe>`;
-                            embedContainer.dataset.loaded = "1";
-                        }
-                        embedContainer.style.display = "block";
-                        toggleBtn.textContent = "📄 Hide Details";
-                    }
-                });
-            }
-        }
     }
     
     // Debounced event handlers
@@ -1217,17 +1316,6 @@
         const purchaseSection = document.getElementById('purchaseHistorySection');
         if (purchaseSection) purchaseSection.style.display = isAdmin ? 'block' : 'none';
         document.getElementById("userRoleBadge").innerHTML = isAdmin ? "👑 Admin · Full Access" : `🏠 Room ${roomId} · Member`;
-
-        const sheetsLink = document.getElementById("sheetsPageLink");
-        if (sheetsLink) {
-            if (isAdmin) {
-                sheetsLink.href = "sheets.html?role=admin";
-                sheetsLink.textContent = "📄 View All Room Details Sheets";
-            } else if (roomId) {
-                sheetsLink.href = `sheets.html?role=user&room=${roomId}`;
-                sheetsLink.textContent = "📄 View My Room's Details Sheet";
-            }
-        }
     }
     
     async function showDashboard() {
@@ -1322,6 +1410,7 @@
 
     async function init() {
         await initializeData();
+        flushPendingWrites(); // catch up on anything left unsynced from a previous session
         document.querySelectorAll(".tab-btn").forEach(btn => btn.onclick = () => {
             const t = btn.dataset.tab;
             document.getElementById("userLoginForm").style.display = t === "user" ? "flex" : "none";
