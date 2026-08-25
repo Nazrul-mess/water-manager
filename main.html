@@ -37,7 +37,7 @@
         <div class="login-wrapper">
             <div class="tab-buttons"><button class="tab-btn active" data-tab="user">🔑 Login as Member</button><button class="tab-btn" data-tab="admin">👑 Login as Admin</button></div>
             <div id="userLoginForm" class="login-form">
-                <div class="input-group"><label>🏠 Room Number (1-8)</label><input type="number" id="userRoom" placeholder="e.g., 3" min="1" max="8" required></div>
+                <div class="input-group"><label>🏠 Room Number (0 = Other, 1-7)</label><input type="number" id="userRoom" placeholder="e.g., 3" min="0" max="7" required></div>
                 <div class="input-group"><label>🔐 Room Password</label><input type="password" id="userPass" placeholder="Enter password" required minlength="6"></div>
                 <button class="btn-primary" id="userLoginBtn">Login as Member</button>
                 <div id="userError" class="error-msg" style="display:none;"></div>
@@ -62,6 +62,7 @@
         <div style="padding: 0 20px 20px 20px; background:#f4f9fe;">
             <div class="action-card"><h3 id="roomDetailHeading">📊 Room Complete Data</h3><div id="roomDetailPanel"></div></div>
             <div class="action-card" id="purchaseHistorySection" style="display:none;"><h3>📦 Water Purchase History</h3><div style="overflow-x:auto;"><table id="purchaseTable"><thead><tr><th>Date</th><th>Units Added</th><th>Total Cost (₹)</th><th>Added By</th></tr></thead><tbody id="purchaseTableBody"><tr><td colspan="4">Loading...</td></tr></tbody></table></div></div>
+            <div class="action-card" id="transactionLogSection" style="display:none;"><h3>↩️ Recent Transactions (Undo)</h3><div style="overflow-x:auto;"><table id="transactionLogTable"><thead><tr><th>Date/Time</th><th>Room</th><th>Type</th><th>Details</th><th>Status</th><th>Action</th></tr></thead><tbody id="transactionLogTableBody"><tr><td colspan="6">Loading...</td></tr></tbody></table></div></div>
             <div class="action-card"><h3>🚰 Room Water Usage Log</h3><div style="overflow-x:auto;"><table id="usageTable"><thead><tr><th>Room</th><th>Units Used</th><th>Date</th><th>Cost (₹)</th></tr></thead><tbody id="usageTableBody"><tr><td colspan="4">Loading...</td></tr></tbody></table></div></div>
             <div id="qrSection"></div>
         </div>
@@ -85,21 +86,37 @@
 
     // Default data structure - only used the very first time the app runs
     // (i.e. when the Firestore document does not exist yet).
+    // Room "0" is the special "Other" room (kitchen, common/tour usage, etc.)
+    // Rooms "1".."7" are the regular member rooms.
+    const ALL_ROOM_IDS = ["0", "1", "2", "3", "4", "5", "6", "7"];
+    function zeroedRoomMap(fillValue) {
+        const map = {};
+        ALL_ROOM_IDS.forEach(r => { map[r] = fillValue; });
+        return map;
+    }
+    function roomLabel(room) {
+        const r = (room === undefined || room === null) ? '' : room.toString();
+        return r === "0" ? "Other" : `Room ${r}`;
+    }
+    function genId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+    }
+
     const DEFAULT_DATA = {
-        room_balances: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0 },
+        room_balances: zeroedRoomMap(0),
         total_balance_pool: 0,
         total_water_stored: 0,
-        monthly_water_usage: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0 },
+        monthly_water_usage: zeroedRoomMap(0),
         detailed_usage_log: [],
         water_purchase_log: [],
-        room_passwords: { "1": DEFAULT_ROOM_PASSWORD, "2": DEFAULT_ROOM_PASSWORD, "3": DEFAULT_ROOM_PASSWORD, "4": DEFAULT_ROOM_PASSWORD, "5": DEFAULT_ROOM_PASSWORD, "6": DEFAULT_ROOM_PASSWORD, "7": DEFAULT_ROOM_PASSWORD, "8": DEFAULT_ROOM_PASSWORD },
+        room_passwords: zeroedRoomMap(DEFAULT_ROOM_PASSWORD),
         admin_cred: { username: DEFAULT_ADMIN_USERNAME, password: DEFAULT_ADMIN_PASSWORD },
         water_unit_cost: 30,
         advance_transactions: [],
         transaction_log: [],
-        room_total_usage: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0 },
-        room_total_advances: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0 },
-        room_total_cost: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0 },
+        room_total_usage: zeroedRoomMap(0),
+        room_total_advances: zeroedRoomMap(0),
+        room_total_cost: zeroedRoomMap(0),
         last_transaction_time: null,
         system_start_date: new Date().toISOString()
     };
@@ -126,8 +143,8 @@
     // ==================== VALIDATION HELPERS ====================
     function validateRoomNumber(room) {
         const num = parseInt(room);
-        if (isNaN(num) || num < 1 || num > 8) {
-            return { valid: false, message: "Room number must be between 1 and 8" };
+        if (isNaN(num) || num < 0 || num > 7) {
+            return { valid: false, message: "Room number must be between 0 (Other) and 7" };
         }
         return { valid: true, value: num };
     }
@@ -212,8 +229,8 @@
             let sheetName = "Master_Summary";
             if (entry.room === "ADMIN") {
                 sheetName = "Admin_Actions";
-            } else if (entry.room && entry.room >= 1 && entry.room <= 8) {
-                sheetName = `Room_${entry.room}`;
+            } else if (entry.room !== undefined && entry.room !== null && entry.room >= 0 && entry.room <= 7) {
+                sheetName = entry.room == 0 ? "Other" : `Room_${entry.room}`;
             }
             
             const payload = {
@@ -418,6 +435,8 @@
             timestamp: getTimestamp(),
             date: getDateStr(),
             time: new Date().toLocaleTimeString(),
+            undoable: false,
+            undone: false,
             ...entry,
             balance_after: entry.balance !== undefined && entry.balance !== null ? Math.round(entry.balance * 100) / 100 : null
         };
@@ -585,7 +604,7 @@
                 units: 0,
                 amount: 0,
                 balance: currentData.room_balances[roomStr] || 0,
-                note: `Room ${roomStr} changed password`,
+                note: `${roomLabel(roomStr)} changed password`,
                 password_changed: true
             });
             
@@ -595,7 +614,7 @@
                 units: 0,
                 amount: 0,
                 balance: currentData.room_balances[roomStr] || 0,
-                note: `Room ${roomStr} password updated`,
+                note: `${roomLabel(roomStr)} password updated`,
                 password_changed: true
             });
             
@@ -657,16 +676,18 @@
 
     function addAdvanceTransaction(room, amount) {
         const validRoom = validateRoomNumber(room);
-        if (!validRoom.valid) return false;
-        
-        currentData.advance_transactions.unshift({ 
+        if (!validRoom.valid) return null;
+
+        const id = genId();
+        currentData.advance_transactions.unshift({
+            id,
             room: validRoom.value.toString(), 
             amount: Math.round(amount * 100) / 100,
             date: new Date().toISOString().slice(0,10), 
             timestamp: Date.now() 
         });
         currentData.advance_transactions = trimLog(currentData.advance_transactions);
-        return true;
+        return id;
     }
     
     async function adminAddWaterStorage(units, addedBy = "Admin") {
@@ -680,8 +701,13 @@
             }
             
             const waterCost = validUnits.value * getUnitCost();
+            // Admin is allowed to add water even if the pool balance is
+            // zero or insufficient - the pool simply goes negative (a
+            // "loan" against future room advances), same as a room can
+            // carry a negative balance. Purchases are never blocked here.
+            let poolWarning = null;
             if (waterCost > currentData.total_balance_pool) {
-                return { success: false, message: `Insufficient Total Balance (${formatCurrency(currentData.total_balance_pool)}) to purchase ${validUnits.value} units. Need ${formatCurrency(waterCost)}.` };
+                poolWarning = `⚠️ Pool balance will go negative: ${formatCurrency(Math.round((currentData.total_balance_pool - waterCost) * 100) / 100)}.`;
             }
             
             const oldPool = currentData.total_balance_pool;
@@ -691,7 +717,10 @@
             currentData.total_water_stored += validUnits.value;
             currentData.last_transaction_time = getTimestamp();
             
+            const purchaseLogId = genId();
+            const usageLogId = genId();
             currentData.water_purchase_log.unshift({ 
+                id: purchaseLogId,
                 date: new Date().toISOString().slice(0,10), 
                 units: validUnits.value, 
                 cost: Math.round(waterCost * 100) / 100, 
@@ -700,6 +729,7 @@
                 balance_after: currentData.total_balance_pool
             });
             currentData.detailed_usage_log.unshift({ 
+                id: usageLogId,
                 room: "ADMIN_PURCHASE", 
                 units: validUnits.value, 
                 date: new Date().toISOString().slice(0,10), 
@@ -718,7 +748,10 @@
                 old_balance: oldPool,
                 old_storage: oldStorage,
                 water_remaining: currentData.total_water_stored,
-                unit_cost: getUnitCost()
+                unit_cost: getUnitCost(),
+                ref_id: purchaseLogId,
+                ref_id2: usageLogId,
+                undoable: true
             });
             
             const entry = { 
@@ -734,7 +767,9 @@
                 water_remaining: currentData.total_water_stored
             };
             await syncAfterModification(entry);
-            return { success: true, message: `✅ Added ${validUnits.value} units water. ${formatCurrency(Math.round(waterCost * 100) / 100)} deducted. Storage: ${currentData.total_water_stored} units.` };
+            let successMsg = `✅ Added ${validUnits.value} units water. ${formatCurrency(Math.round(waterCost * 100) / 100)} deducted. Storage: ${currentData.total_water_stored} units. Pool balance: ${formatCurrency(currentData.total_balance_pool)}.`;
+            if (poolWarning) successMsg += ` ${poolWarning}`;
+            return { success: true, message: successMsg };
         } finally {
             isProcessing = false;
         }
@@ -786,7 +821,9 @@
             currentData.room_total_cost[roomStr] = Math.round(((currentData.room_total_cost[roomStr] || 0) + roundedCost) * 100) / 100;
             currentData.last_transaction_time = getTimestamp();
             
+            const usageLogId = genId();
             currentData.detailed_usage_log.unshift({ 
+                id: usageLogId,
                 room: roomStr, 
                 units: validUnits.value, 
                 date: new Date().toISOString().slice(0,10), 
@@ -800,11 +837,13 @@
                 units: validUnits.value,
                 amount: roundedCost,
                 balance: currentData.room_balances[roomStr],
-                note: `Room ${roomStr} used ${validUnits.value} units, cost ${formatCurrency(roundedCost)}`,
+                note: `${roomLabel(roomStr)} used ${validUnits.value} units, cost ${formatCurrency(roundedCost)}`,
                 old_balance: oldBal,
                 old_storage: oldStorage,
                 water_remaining: currentData.total_water_stored,
-                unit_cost: getUnitCost()
+                unit_cost: getUnitCost(),
+                ref_id: usageLogId,
+                undoable: true
             });
             
             const entry = { 
@@ -813,7 +852,7 @@
                 units: validUnits.value, 
                 amount: roundedCost, 
                 balance: currentData.room_balances[roomStr], 
-                note: `Room ${roomStr} used ${validUnits.value} units`,
+                note: `${roomLabel(roomStr)} used ${validUnits.value} units`,
                 unit_cost: getUnitCost(),
                 old_balance: oldBal,
                 old_storage: oldStorage,
@@ -851,7 +890,7 @@
             currentData.room_total_advances[roomStr] = Math.round(((currentData.room_total_advances[roomStr] || 0) + validAmount.value) * 100) / 100;
             currentData.last_transaction_time = getTimestamp();
             
-            addAdvanceTransaction(roomStr, validAmount.value);
+            const advanceLogId = addAdvanceTransaction(roomStr, validAmount.value);
             
             addTransactionLog({
                 room: roomStr,
@@ -859,10 +898,12 @@
                 units: 0,
                 amount: validAmount.value,
                 balance: currentData.room_balances[roomStr],
-                note: `Advance payment ${formatCurrency(validAmount.value)} to Room ${roomStr}`,
+                note: `Advance payment ${formatCurrency(validAmount.value)} to ${roomLabel(roomStr)}`,
                 old_balance: oldBal,
                 pool_after: currentData.total_balance_pool,
-                unit_cost: getUnitCost()
+                unit_cost: getUnitCost(),
+                ref_id: advanceLogId,
+                undoable: true
             });
             
             const entry = { 
@@ -877,7 +918,7 @@
                 pool_after: currentData.total_balance_pool
             };
             await syncAfterModification(entry);
-            return { success: true, message: `${formatCurrency(validAmount.value)} added to Room ${validRoom.value}. Room balance: ${formatCurrency(currentData.room_balances[roomStr])}` };
+            return { success: true, message: `${formatCurrency(validAmount.value)} added to ${roomLabel(validRoom.value)}. Room balance: ${formatCurrency(currentData.room_balances[roomStr])}` };
         } finally {
             isProcessing = false;
         }
@@ -912,7 +953,8 @@
                 note: `Unit cost changed from ${formatCurrency(oldCost)} to ${formatCurrency(currentData.water_unit_cost)}`,
                 old_cost: oldCost,
                 new_cost: currentData.water_unit_cost,
-                unit_cost: currentData.water_unit_cost
+                unit_cost: currentData.water_unit_cost,
+                undoable: true
             });
             
             await syncAfterModification({ 
@@ -927,6 +969,120 @@
                 unit_cost: currentData.water_unit_cost
             });
             return { success: true, message: `Unit cost updated to ${formatCurrency(currentData.water_unit_cost)}` };
+        } finally {
+            isProcessing = false;
+        }
+    }
+
+    // ==================== UNDO TRANSACTION (Admin only) ====================
+    // Reverses the balance/storage/log side-effects of a single transaction
+    // and marks it as "undone" (the original entry is kept for audit
+    // purposes, never deleted). Only transactions that carry the info
+    // needed to reverse them cleanly (consumption, advance, purchase,
+    // unit-cost change) are undoable - password changes are not, since the
+    // old password is intentionally never stored in the log.
+    //
+    // IMPORTANT: undo applies the INVERSE of the original transaction's
+    // delta on top of whatever the CURRENT balance/storage is - it does
+    // NOT jump back to the old_balance/old_storage snapshot. If it reset
+    // to the snapshot, undoing an out-of-order transaction (i.e. one that
+    // isn't the most recent action on that room/pool) would silently wipe
+    // out every other transaction that happened afterward. Applying the
+    // delta instead means undo is always correct regardless of order, and
+    // the result is allowed to go negative (a room loan, an over-drawn
+    // pool, storage that dips below zero because water from an undone
+    // purchase was already consumed) since that negative number is simply
+    // the true, honest state after reversing this one transaction.
+    async function undoTransaction(transactionId) {
+        if (isProcessing) return { success: false, message: "Please wait, processing..." };
+        isProcessing = true;
+
+        try {
+            const log = currentData.transaction_log || [];
+            const entry = log.find(e => e.id == transactionId);
+
+            if (!entry) {
+                return { success: false, message: "❌ Transaction not found." };
+            }
+            if (entry.undone) {
+                return { success: false, message: "❌ This transaction was already undone." };
+            }
+            if (!entry.undoable || !['consumption', 'advance', 'purchase', 'setting'].includes(entry.type)) {
+                return { success: false, message: "❌ This type of transaction cannot be undone." };
+            }
+
+            const roomStr = entry.room && entry.room !== "ADMIN" ? entry.room.toString() : null;
+            let summary = "";
+            const round2 = (n) => Math.round(n * 100) / 100;
+
+            if (entry.type === "consumption") {
+                // Original effect: room balance -= cost, storage -= units,
+                // usage/cost totals += units/cost. Undo reverses each by
+                // the same delta, whatever the current values now are.
+                currentData.room_balances[roomStr] = round2((currentData.room_balances[roomStr] || 0) + entry.amount);
+                currentData.total_water_stored = round2((currentData.total_water_stored || 0) + entry.units);
+                currentData.monthly_water_usage[roomStr] = round2((currentData.monthly_water_usage[roomStr] || 0) - entry.units);
+                currentData.room_total_usage[roomStr] = round2((currentData.room_total_usage[roomStr] || 0) - entry.units);
+                currentData.room_total_cost[roomStr] = round2((currentData.room_total_cost[roomStr] || 0) - entry.amount);
+                if (entry.ref_id) {
+                    currentData.detailed_usage_log = (currentData.detailed_usage_log || []).filter(l => l.id !== entry.ref_id);
+                }
+                summary = `Reversed ${entry.units} units consumed by ${roomLabel(roomStr)}. ${roomLabel(roomStr)} balance is now ${formatCurrency(currentData.room_balances[roomStr])}.`;
+            } else if (entry.type === "purchase") {
+                // Original effect: pool -= cost, storage += units. Undo
+                // adds the cost back to the pool and subtracts the units
+                // from storage - storage CAN go negative here if that
+                // water was already consumed by other transactions since.
+                currentData.total_balance_pool = round2((currentData.total_balance_pool || 0) + entry.amount);
+                currentData.total_water_stored = round2((currentData.total_water_stored || 0) - entry.units);
+                if (entry.ref_id) {
+                    currentData.water_purchase_log = (currentData.water_purchase_log || []).filter(p => p.id !== entry.ref_id);
+                }
+                if (entry.ref_id2) {
+                    currentData.detailed_usage_log = (currentData.detailed_usage_log || []).filter(l => l.id !== entry.ref_id2);
+                }
+                summary = `Reversed purchase of ${entry.units} units. Pool balance is now ${formatCurrency(currentData.total_balance_pool)}, storage is now ${Math.round(currentData.total_water_stored * 100) / 100} units.`;
+            } else if (entry.type === "advance") {
+                // Original effect: room balance += amount, pool += amount.
+                // Undo subtracts the amount from both - either can go
+                // negative if the money was already spent/used elsewhere.
+                currentData.room_balances[roomStr] = round2((currentData.room_balances[roomStr] || 0) - entry.amount);
+                currentData.total_balance_pool = round2((currentData.total_balance_pool || 0) - entry.amount);
+                currentData.room_total_advances[roomStr] = round2((currentData.room_total_advances[roomStr] || 0) - entry.amount);
+                if (entry.ref_id) {
+                    currentData.advance_transactions = (currentData.advance_transactions || []).filter(a => a.id !== entry.ref_id);
+                }
+                summary = `Reversed advance of ${formatCurrency(entry.amount)} to ${roomLabel(roomStr)}. ${roomLabel(roomStr)} balance is now ${formatCurrency(currentData.room_balances[roomStr])}.`;
+            } else if (entry.type === "setting") {
+                // Not a running balance, so this one is fine as a direct
+                // restore rather than a delta.
+                currentData.water_unit_cost = entry.old_cost;
+                summary = `Reversed unit cost change. Cost restored to ${formatCurrency(entry.old_cost)}.`;
+            }
+
+            entry.undone = true;
+            entry.undone_at = getTimestamp();
+
+            addTransactionLog({
+                room: entry.room || "ADMIN",
+                type: "undo",
+                units: 0,
+                amount: 0,
+                balance: roomStr ? (currentData.room_balances[roomStr] || 0) : 0,
+                note: `Undid transaction from ${entry.date} ${entry.time}: ${summary}`,
+                undone_transaction_id: entry.id
+            });
+
+            await syncAfterModification({
+                room: entry.room || "ADMIN",
+                type: "undo",
+                units: 0,
+                amount: 0,
+                balance: roomStr ? (currentData.room_balances[roomStr] || 0) : 0,
+                note: summary
+            });
+
+            return { success: true, message: `↩️ ${summary}` };
         } finally {
             isProcessing = false;
         }
@@ -962,6 +1118,65 @@
         ).join('');
     }
     
+    function renderTransactionLogTable() {
+        const tbody = document.getElementById("transactionLogTableBody");
+        if (!tbody) return;
+        const log = (currentData.transaction_log || []).slice(0, 30);
+        if (!log.length) {
+            tbody.innerHTML = "<tr><td colspan='6'>No transactions recorded</td></tr>";
+            return;
+        }
+        const typeLabels = {
+            consumption: "🚰 Consumption",
+            advance: "💰 Advance",
+            purchase: "🌊 Water Purchase",
+            setting: "⚙️ Setting Change",
+            undo: "↩️ Undo",
+            password_change: "🔑 Password Change",
+            admin_password_change: "🔑 Admin Password Change"
+        };
+        tbody.innerHTML = log.map(e => {
+            const roomText = e.room === "ADMIN" ? "Admin" : roomLabel(e.room);
+            const typeText = typeLabels[e.type] || e.type;
+            const details = e.note || "";
+            const canUndo = e.undoable && !e.undone && ['consumption', 'advance', 'purchase', 'setting'].includes(e.type);
+            let statusText = "";
+            let actionCell = "";
+            if (e.undone) {
+                statusText = "<span style='color:#bc392e;'>↩️ Undone</span>";
+                actionCell = "—";
+            } else if (canUndo) {
+                statusText = "<span style='color:#2b7a3e;'>Active</span>";
+                actionCell = `<button class="btn-primary btn-warning undo-tx-btn" data-txid="${e.id}" style="padding:4px 10px; font-size:0.8rem;">Undo</button>`;
+            } else {
+                statusText = "<span style='color:#6b8aa8;'>Active</span>";
+                actionCell = "—";
+            }
+            return `<tr><td>${e.date || ''} ${e.time || ''}</td><td>${roomText}</td><td>${typeText}</td><td>${details}</td><td>${statusText}</td><td>${actionCell}</td></tr>`;
+        }).join('');
+
+        tbody.querySelectorAll(".undo-tx-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const txId = btn.dataset.txid;
+                if (!confirm("Undo this transaction? This will reverse its effect on balances and storage.")) return;
+                btn.disabled = true;
+                btn.textContent = "⏳...";
+                debouncedUndoTransaction(txId, btn);
+            });
+        });
+    }
+
+    const debouncedUndoTransaction = debounce(async (txId, btn) => {
+        const res = await undoTransaction(txId);
+        showToast(res.success ? res.message : `❌ ${res.message}`, res.success ? "success" : "error");
+        if (res.success) {
+            renderUI();
+        } else if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Undo";
+        }
+    }, 300);
+
     function renderRoomDetail(roomNum) {
         const panel = document.getElementById("roomDetailPanel");
         if (!panel) return;
@@ -974,7 +1189,7 @@
         const roomAdvances = (currentData.advance_transactions || []).filter(t => t.room === r);
         
         let html = `<div class="room-data-card">
-            <h4>🏠 Room ${roomNum} - Complete Details</h4>
+            <h4>🏠 ${roomLabel(roomNum)} - Complete Details</h4>
             <p><strong>💰 Current Balance:</strong> ${formatCurrency(balance)}</p>
             <p><strong>📊 This Month's Usage:</strong> ${Math.round(monthly * 100) / 100} units (${formatCurrency(monthly * getUnitCost())})</p>
             <p><strong>📊 Total Usage:</strong> ${Math.round(totalUsage * 100) / 100} units (${formatCurrency(totalCost)})</p>
@@ -1058,7 +1273,7 @@
         
         let statsHtml = `<div class="stat-card"><h3>💧 Water Storage</h3><div class="stat-value">${Math.round(currentData.total_water_stored * 100) / 100} units</div></div>`;
         if (isAdmin) {
-            statsHtml += `<div class="stat-card"><h3>💰 Total Balance</h3><div class="stat-value">${formatCurrency(currentData.total_balance_pool)}</div></div>
+            statsHtml += `<div class="stat-card"><h3>💰 Total Balance</h3><div class="stat-value" style="color:${currentData.total_balance_pool < 0 ? '#bc392e' : '#1e3a5f'}">${formatCurrency(currentData.total_balance_pool)}</div></div>
                          <div class="stat-card"><h3>💵 Cost/Unit</h3><div class="stat-value">${formatCurrency(getUnitCost())}</div></div>`;
         } else if (roomId) {
             const myBal = currentData.room_balances[roomId] || 0;
@@ -1068,7 +1283,7 @@
         statsDiv.innerHTML = statsHtml;
         
         if (!isAdmin && roomId) {
-            actionDiv.innerHTML = `<div class="action-card"><h3>🚰 Consume Water (Room ${roomId})</h3>
+            actionDiv.innerHTML = `<div class="action-card"><h3>🚰 Consume Water (${roomLabel(roomId)})</h3>
                 <div class="form-inline"><div class="input-group"><label>Units (1 unit = ${formatCurrency(getUnitCost())})</label>
                 <input type="number" id="userUnits" min="0.1" step="0.1" placeholder="Units" required></div>
                 <button class="btn-primary" id="useWaterBtn">💧 Use Water</button></div>
@@ -1154,7 +1369,7 @@
                 </div>
             </div>
                 <div class="action-card"><h3>💰 Quick Advance</h3>
-                <div class="form-inline"><div class="input-group"><label>Room Number (1-8)</label><input type="number" id="advRoom" min="1" max="8" placeholder="Room" required></div>
+                <div class="form-inline"><div class="input-group"><label>Room Number (0 = Other, 1-7)</label><input type="number" id="advRoom" min="0" max="7" placeholder="Room" required></div>
                 <div class="quick-advance-grid">
                     <button class="quick-advance-btn" data-quick-room="30">₹30</button>
                     <button class="quick-advance-btn" data-quick-room="60">₹60</button>
@@ -1208,9 +1423,9 @@
                 const fb = document.getElementById("advFeedback");
                 if (!fb) return;
                 
-                if (!room || room < 1 || room > 8) {
-                    fb.innerHTML = "<span style='color:red'>❌ Select valid room (1-8)</span>";
-                    showToast("❌ Select valid room (1-8)", "error");
+                if (room === '' || room === null || room < 0 || room > 7) {
+                    fb.innerHTML = "<span style='color:red'>❌ Select valid room (0-7)</span>";
+                    showToast("❌ Select valid room (0-7)", "error");
                     return;
                 }
                 
@@ -1230,9 +1445,9 @@
                 const fb = document.getElementById("advFeedback");
                 if (!fb) return;
                 
-                if (!room || room < 1 || room > 8) {
-                    fb.innerHTML = "<span style='color:red'>❌ Select valid room (1-8)</span>";
-                    showToast("❌ Select valid room (1-8)", "error");
+                if (room === '' || room === null || room < 0 || room > 7) {
+                    fb.innerHTML = "<span style='color:red'>❌ Select valid room (0-7)</span>";
+                    showToast("❌ Select valid room (0-7)", "error");
                     return;
                 }
                 
@@ -1303,7 +1518,7 @@
             heading.innerText = `📊 Your Room (${roomId}) Complete Data`;
             renderRoomDetail(parseInt(roomId));
         } else if (isAdmin) {
-            heading.innerHTML = `📊 Room-wise Details: <select id="adminRoomSelector" style="margin-left:10px;">${[1,2,3,4,5,6,7,8].map(r => `<option value="${r}" ${adminSelectedRoom == r ? 'selected' : ''}>Room ${r}</option>`).join('')}</select>`;
+            heading.innerHTML = `📊 Room-wise Details: <select id="adminRoomSelector" style="margin-left:10px;">${[0,1,2,3,4,5,6,7].map(r => `<option value="${r}" ${adminSelectedRoom == r ? 'selected' : ''}>${roomLabel(r)}</option>`).join('')}</select>`;
             renderRoomDetail(adminSelectedRoom);
             document.getElementById("adminRoomSelector")?.addEventListener("change", (e) => {
                 adminSelectedRoom = parseInt(e.target.value);
@@ -1315,7 +1530,10 @@
         renderPurchaseTable();
         const purchaseSection = document.getElementById('purchaseHistorySection');
         if (purchaseSection) purchaseSection.style.display = isAdmin ? 'block' : 'none';
-        document.getElementById("userRoleBadge").innerHTML = isAdmin ? "👑 Admin · Full Access" : `🏠 Room ${roomId} · Member`;
+        const txLogSection = document.getElementById('transactionLogSection');
+        if (txLogSection) txLogSection.style.display = isAdmin ? 'block' : 'none';
+        if (isAdmin) renderTransactionLogTable();
+        document.getElementById("userRoleBadge").innerHTML = isAdmin ? "👑 Admin · Full Access" : `🏠 ${roomLabel(roomId)} · Member`;
     }
     
     async function showDashboard() {
@@ -1342,7 +1560,7 @@
                 if (session.isAdmin === true) {
                     currentSession = { isAdmin: true, room: null };
                     return true;
-                } else if (session.room && session.room >= 1 && session.room <= 8) {
+                } else if (session.room !== undefined && session.room !== null && session.room >= 0 && session.room <= 7) {
                     currentSession = { isAdmin: false, room: session.room.toString() };
                     return true;
                 }
@@ -1362,8 +1580,8 @@
         const pass = document.getElementById("userPass").value;
         const errorEl = document.getElementById("userError");
         
-        if (!room || room < 1 || room > 8) {
-            showError(errorEl, "Please enter a valid room number (1-8)");
+        if (room === '' || room === null || room === undefined || room < 0 || room > 7) {
+            showError(errorEl, "Please enter a valid room number (0-7)");
             return;
         }
         if (!pass || pass.length < 4) {
@@ -1375,7 +1593,7 @@
         if (currentData.room_passwords && currentData.room_passwords[roomStr] === pass) {
             currentSession = { isAdmin: false, room: roomStr };
             persistSession();
-            showToast(`✅ Welcome, Room ${roomStr}!`, "success");
+            showToast(`✅ Welcome, ${roomLabel(roomStr)}!`, "success");
             showDashboard();
         } else {
             showError(errorEl, "Invalid room number or password");
