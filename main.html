@@ -245,6 +245,13 @@
             // go in the payload.
             const payload = {
                 sheetName: sheetName,
+                // Every caller now supplies a stable id shared with that
+                // transaction's addTransactionLog() entry - the fallback
+                // below only exists for defensive safety. If this ever
+                // falls back to a fresh random id, a retry of the same
+                // logical transaction would get a different id each time,
+                // which defeats the Apps Script's duplicate-id guard and
+                // lets the same transaction get appended more than once.
                 id: entry.id || Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
                 timestamp: entry.timestamp || getTimestamp(),
                 date: entry.date || getDateStr(),
@@ -717,9 +724,11 @@
             
             // Update password
             currentData.room_passwords[roomStr] = newPassword;
+            const txId = genId();
             
             // Log the password change
             addTransactionLog({
+                id: txId,
                 room: roomStr,
                 type: "password_change",
                 units: 0,
@@ -730,6 +739,7 @@
             });
             
             await syncAfterModification({
+                id: txId,
                 room: roomStr,
                 type: "password_change",
                 units: 0,
@@ -767,9 +777,11 @@
             
             // Update admin password
             currentData.admin_cred.password = newPassword;
+            const txId = genId();
             
             // Log the password change
             addTransactionLog({
+                id: txId,
                 room: "ADMIN",
                 type: "admin_password_change",
                 units: 0,
@@ -780,6 +792,7 @@
             });
             
             await syncAfterModification({
+                id: txId,
                 room: "ADMIN",
                 type: "admin_password_change",
                 units: 0,
@@ -840,6 +853,7 @@
             
             const purchaseLogId = genId();
             const usageLogId = genId();
+            const txId = genId();
             currentData.water_purchase_log.unshift({ 
                 id: purchaseLogId,
                 date: new Date().toISOString().slice(0,10), 
@@ -860,6 +874,7 @@
             currentData.detailed_usage_log = trimLog(currentData.detailed_usage_log);
             
             addTransactionLog({
+                id: txId,
                 room: "ADMIN",
                 type: "purchase",
                 units: validUnits.value,
@@ -875,7 +890,12 @@
                 undoable: true
             });
             
+            // Same id as the transaction_log entry above, on purpose - see
+            // the note on syncAfterModification()/pushToGoogleSheet() for
+            // why a stable id is what makes Sheet retries safe instead of
+            // producing duplicate rows.
             const entry = { 
+                id: txId,
                 room: "ADMIN", 
                 type: "water_purchase", 
                 units: validUnits.value, 
@@ -943,6 +963,7 @@
             currentData.last_transaction_time = getTimestamp();
             
             const usageLogId = genId();
+            const txId = genId();
             currentData.detailed_usage_log.unshift({ 
                 id: usageLogId,
                 room: roomStr, 
@@ -953,6 +974,7 @@
             currentData.detailed_usage_log = trimLog(currentData.detailed_usage_log);
             
             addTransactionLog({
+                id: txId,
                 room: roomStr,
                 type: "consumption",
                 units: validUnits.value,
@@ -968,6 +990,7 @@
             });
             
             const entry = { 
+                id: txId,
                 room: roomStr, 
                 type: "consumption", 
                 units: validUnits.value, 
@@ -1012,8 +1035,10 @@
             currentData.last_transaction_time = getTimestamp();
             
             const advanceLogId = addAdvanceTransaction(roomStr, validAmount.value);
+            const txId = genId();
             
             addTransactionLog({
+                id: txId,
                 room: roomStr,
                 type: "advance",
                 units: 0,
@@ -1028,6 +1053,7 @@
             });
             
             const entry = { 
+                id: txId,
                 room: roomStr, 
                 type: "advance", 
                 units: 0, 
@@ -1064,8 +1090,10 @@
             
             const oldCost = currentData.water_unit_cost;
             currentData.water_unit_cost = Math.round(validCost.value * 100) / 100;
+            const txId = genId();
             
             addTransactionLog({
+                id: txId,
                 room: "ADMIN",
                 type: "setting",
                 units: 0,
@@ -1079,6 +1107,7 @@
             });
             
             await syncAfterModification({ 
+                id: txId,
                 room: "ADMIN", 
                 type: "setting", 
                 units: 0, 
@@ -1189,8 +1218,10 @@
 
             entry.undone = true;
             entry.undone_at = getTimestamp();
+            const txId = genId();
 
             addTransactionLog({
+                id: txId,
                 room: entry.room || "ADMIN",
                 type: "undo",
                 units: entry.units || 0,
@@ -1211,6 +1242,7 @@
             // which the rebuild uses directly as the room's balance rather
             // than recomputing it, so it can never drift out of sync.
             await syncAfterModification({
+                id: txId,
                 room: entry.room || "ADMIN",
                 type: "undo",
                 original_type: entry.type,
