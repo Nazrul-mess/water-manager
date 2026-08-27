@@ -9,7 +9,7 @@ export const firebaseConfig = {
 };
 
 
-export const GOOGLE_SHEET_WEBHOOK = "https://script.google.com/macros/s/AKfycbwf3pSmHcM-gPMkgmdoFMYe_0Qwa0F2MQg_eZuBKBjJMgjSwo1sUGLPtqVu4NsPMWzbrg/exec";
+export const GOOGLE_SHEET_WEBHOOK = "https://script.google.com/macros/s/AKfycbzktVATDco8IxNg08ojMBabA7_McgMEOffZhB1P8WbmlinEaFOAP5z0IpMc4MYK2IR2Iw/exec";
 
 
 export const DEFAULT_ROOM_PASSWORD = "room123";
